@@ -1266,7 +1266,7 @@
                 allProducts.forEach(p=>s.innerHTML+=`<option value="${p.code}">${p.name}</option>`);
                 renderAdminCats();
             }
-            if(t==='vouc') loadAdminVouchers();
+            if(t==='vouc') { renderVoucherTargetOptions(); loadAdminVouchers(); }
             if(t==='stats') loadAdminStats(1);
             if(t==='conf') initAdminConfUI();
         }
@@ -1679,7 +1679,26 @@
         function loadEditForm(){ const c=document.getElementById('editProdSelect').value; const p=allProducts.find(x=>x.code===c); if(p){document.getElementById('editFormArea').style.display='block'; document.getElementById('editPrice').value=p.price; document.getElementById('editImg').value=p.img||''; document.getElementById('editDesc').value=p.desc||''; document.getElementById('editCat').value=p.category||'';} }
 
         // VOUCHER LOGIC
-        async function loadAdminVouchers(){const r=await fetch('/api/admin/vouchers',{headers:{'Admin-Key':localStorage.getItem('adminKey')}});const d=await r.json();const l=document.getElementById('voucherListAdmin');l.innerHTML='';if(d.vouchers.length===0){l.innerHTML='<p style="text-align:center;color:#888;">Belum ada voucher</p>';return}d.vouchers.forEach(v=>{l.innerHTML+=`<div class="stock-item" style="display:flex;justify-content:space-between;"><div><strong>${v.code}</strong> (Rp ${v.amount.toLocaleString()})</div><div style="cursor:pointer;color:var(--danger);" onclick="admDelVoucher('${v.code}')">{{ICON_TRASH}}</div></div>`})}
+        function renderVoucherTargetOptions() {
+            const s = document.getElementById('vTarget');
+            s.innerHTML = '<option value="ALL">Semua Produk</option>';
+            allProducts.forEach(p => s.innerHTML += `<option value="${p.code}">${p.name}</option>`);
+        }
+        async function loadAdminVouchers(){const r=await fetch('/api/admin/vouchers',{headers:{'Admin-Key':localStorage.getItem('adminKey')}});const d=await r.json();const l=document.getElementById('voucherListAdmin');l.innerHTML='';if(d.vouchers.length===0){l.innerHTML='<p style="text-align:center;color:#888;">Belum ada voucher</p>';return}
+        d.vouchers.forEach(v=>{
+            const tName = v.validFor === 'ALL' ? 'Semua Produk' : (allProducts.find(x=>x.code===v.validFor)?.name || v.validFor);
+            const usage = `${v.used||0} / ${(!v.limit || v.limit===0) ? '∞' : v.limit}`;
+            l.innerHTML+=`<div class="stock-item" style="display:flex;justify-content:space-between; flex-direction:column; align-items:flex-start; gap:5px;">
+                <div style="display:flex; justify-content:space-between; width:100%;">
+                    <div><strong>${v.code}</strong> (Rp ${v.amount.toLocaleString()})</div>
+                    <div style="cursor:pointer;color:var(--danger);" onclick="admDelVoucher('${v.code}')">{{ICON_TRASH}}</div>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-muted); width:100%; display:flex; justify-content:space-between;">
+                    <span>Target: ${tName}</span>
+                    <span>Terpakai: ${usage}</span>
+                </div>
+            </div>`
+        })}
         async function admSaveVoucher(){const c=document.getElementById('vCode').value.trim().toUpperCase(),a=parseInt(document.getElementById('vAmount').value),t=document.getElementById('vTarget').value,l=parseInt(document.getElementById('vLimit').value)||0;if(!c||!a)return toast("Lengkapi Data");await fetch('/api/admin/save-voucher',{method:'POST',headers:{'Content-Type': 'application/json', 'Admin-Key':localStorage.getItem('adminKey')},body:JSON.stringify({code:c,amount:a,validFor:t,limit:l})});toast("Voucher Dibuat");loadAdminVouchers()}
         async function admDelVoucher(c){if(!confirm("Hapus?"))return;await fetch('/api/admin/del-voucher',{method:'POST',headers:{'Content-Type': 'application/json', 'Admin-Key':localStorage.getItem('adminKey')},body:JSON.stringify({code:c})});toast("Dihapus");loadAdminVouchers()}
         async function admDelete(){const c=document.getElementById('editProdSelect').value;if(!c)return;if(!confirm("Hapus produk ini?"))return;await fetch('/api/admin/delete-product',{method:'POST',headers:{'Content-Type': 'application/json', 'Admin-Key':localStorage.getItem('adminKey')},body:JSON.stringify({code:c})});toast("Terhapus");location.reload()}
