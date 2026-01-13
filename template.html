@@ -20,26 +20,25 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-                :root {
-            --bg: #F1F5F9; /* Sedikit lebih gelap agar kartu putih lebih kontras */
+        :root {
+            --bg: #F1F5F9;
             --surface: #FFFFFF;
-            --primary: #4F46E5; /* Ganti ke Indigo/Violet yang lebih modern daripada Royal Blue standar */
+            --primary: #4F46E5;
             --primary-dark: #4338CA;
-            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); /* Gradient baru */
-            --text: #0F172A; /* Slate 900 */
+            --primary-gradient: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+            --text: #0F172A;
             --text-muted: #64748B;
             --border: #E2E8F0;
             --glass: rgba(255, 255, 255, 0.85);
             --danger: #EF4444;
             --success: #10B981;
-            --radius-lg: 20px; /* Radius lebih bulat */
+            --radius-lg: 20px;
             --radius-md: 16px;
             --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-            --shadow-float: 0 10px 25px -5px rgba(79, 70, 229, 0.4); /* Shadow berwarna untuk tombol */
+            --shadow-float: 0 10px 25px -5px rgba(79, 70, 229, 0.4);
             --font-main: 'Plus Jakarta Sans', sans-serif;
             --font-code: 'Fira Code', monospace;
         }
-
 
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
         body { background: var(--bg); color: var(--text); font-family: var(--font-main); margin: 0; padding-bottom: 90px; font-size: 14px; line-height: 1.5; }
@@ -54,7 +53,6 @@
             border-bottom: 1px solid rgba(0,0,0,0.05);
         }
         .nav-brand { font-weight: 800; font-size: 1.1rem; color: var(--primary-dark); letter-spacing: -0.5px; }
-
         .nav-actions { display: flex; gap: 8px; align-items: center; }
 
         /* Search Box in Header */
@@ -75,11 +73,11 @@
         }
         .nav-filter-btn:active { background: #e2e8f0; transform: scale(0.95); }
 
-        /* BANNER (UPDATED POSITION & SIZE) */
+        /* BANNER */
         .banner-container {
-            margin-top: 59px; /* 54px header + 5px gap */
-            margin-bottom: 5px; /* 5px gap ke kategori */
-            padding: 0 4px; /* Sisa 4px kiri-kanan agar lebar */
+            margin-top: 59px;
+            margin-bottom: 5px;
+            padding: 0 4px;
             max-width: 1200px;
             margin-left: auto;
             margin-right: auto;
@@ -88,16 +86,13 @@
         .banner-slider { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); scrollbar-width: none; scroll-behavior: smooth; }
         .banner-slider::-webkit-scrollbar { display: none; }
         .banner-slide { min-width: 100%; scroll-snap-align: center; position: relative; }
-
-        /* BANNER IMAGE: TALLER/BIGGER */
         .banner-img {
             width: 100%;
-            aspect-ratio: 2/1; /* Rasio lebih tinggi */
+            aspect-ratio: 2/1;
             object-fit: cover;
             display: block;
             border-radius: var(--radius-lg);
         }
-
         .banner-dots {
             position: absolute; bottom: 10px; left: 0; right: 0;
             display: flex; justify-content: center; gap: 6px; z-index: 10;
@@ -108,47 +103,55 @@
         }
         .banner-dot.active { background: #fff; width: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
 
-        /* CATEGORY (UPDATED SPACING) */
+        /* CATEGORY */
         .cat-scroll {
             display: flex; gap: 8px; overflow-x: auto;
-            padding: 0 4px 5px 4px; /* Kiri 4px, Bawah 5px */
+            padding: 0 4px 5px 4px;
             scrollbar-width: none; max-width: 1200px; margin: 0 auto;
         }
         .cat-scroll::-webkit-scrollbar { display: none; }
         .cat-pill { background: white; border: 1px solid var(--border); padding: 8px 18px; border-radius: 100px; font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; cursor: pointer; transition: 0.2s; font-weight: 600; }
         .cat-pill.active { background: var(--primary); color: white; border-color: var(--primary); box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); }
 
-        /* GRID MARKETPLACE STYLE */
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 4px; }
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; }
-        @media (min-width: 768px) { .grid { grid-template-columns: repeat(5, 1fr); gap: 4px; } }
+        /* --- PERBAIKAN GRID & SPACING (4px) --- */
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 0 4px; /* Jarak ke pinggir layar 4px */
+        }
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(2, 1fr); 
+            gap: 4px; /* Jarak antar produk 4px */
+            padding-bottom: 10px;
+        }
+        @media (min-width: 768px) { .grid { grid-template-columns: repeat(5, 1fr); gap: 6px; } }
 
         .card {
-    background: white;
-    border-radius: var(--radius-lg);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    cursor: pointer;
-    border: none;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    position: relative;
-}
-.card:active { transform: scale(0.96); }
-.prod-img-container {
-    width: 100%;
-    padding-top: 100%;
-    position: relative;
-    background: #f8fafc;
-    overflow: hidden;
-}
-.prod-img {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover;
-    transition: transform 0.5s ease;
-}
-
+            background: white;
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .card:active { transform: scale(0.96); }
+        .prod-img-container {
+            width: 100%;
+            padding-top: 100%;
+            position: relative;
+            background: #f8fafc;
+            overflow: hidden;
+        }
+        .prod-img {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
         .badge-discount {
             position: absolute; top: 8px; right: 8px; z-index: 10;
             background: rgba(255,255,255, 0.9); backdrop-filter: blur(4px);
@@ -156,70 +159,82 @@
             font-size: 0.65rem; font-weight: 700; color: var(--primary);
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-
         .card-content { padding: 12px; flex-grow: 1; display: flex; flex-direction: column; }
         .card h4 {
             font-size: 0.9rem; font-weight: 600; margin: 0 0 6px 0; color: var(--text);
             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
             line-height: 1.4; height: 2.8em;
         }
-
         .price-row { display: flex; align-items: baseline; gap: 4px; margin-top: auto; justify-content: space-between; }
         .price { color: var(--primary-dark); font-weight: 800; font-size: 1rem; }
         .sold-count { font-size: 0.7rem; color: var(--text-muted); }
 
+        /* --- PERBAIKAN CART BADGE & FOOTER --- */
+        .cart-badge-nav {
+            position: absolute;
+            top: -5px; right: -8px;
+            background: var(--danger);
+            color: white;
+            font-size: 0.65rem; font-weight: 700;
+            min-width: 18px; height: 18px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            border: 2px solid white;
+            z-index: 10;
+            pointer-events: none; /* PENTING: Agar klik tembus ke tombol */
+        }
+        
+        /* Footer Keranjang agar fixed di atas bottom nav */
+        .cart-footer-bar {
+            position: fixed; bottom: 70px; left: 0; right: 0;
+            background: white;
+            padding: 12px 16px;
+            border-top: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 101; /* Di atas navbar */
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.03);
+        }
+
         /* BOTTOM NAV */
         .bottom-nav {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: rgba(255,255,255,0.9);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(0,0,0,0.05);
-    padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
-    display: flex; justify-content: space-around;
-    z-index: 100;
-    box-shadow: 0 -10px 40px rgba(0,0,0,0.03);
-}
-.nav-item {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    flex: 1; color: #94A3B8; cursor: pointer; transition: 0.3s; position: relative;
-}
-.nav-item svg { width: 22px; height: 22px; margin-bottom: 6px; transition: 0.3s; stroke-width: 2px; }
-.nav-item span { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.3px; }
-
-.nav-item.active { color: var(--primary); }
-.nav-item.active svg {
-    transform: translateY(-4px);
-    filter: drop-shadow(0 4px 6px rgba(79, 70, 229, 0.4));
-}
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0,0,0,0.05);
+            padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+            display: flex; justify-content: space-around;
+            z-index: 100;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.03);
+        }
+        .nav-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex: 1; color: #94A3B8; cursor: pointer; transition: 0.3s; position: relative;
+        }
+        .nav-item svg { width: 22px; height: 22px; margin-bottom: 6px; transition: 0.3s; stroke-width: 2px; }
+        .nav-item span { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.3px; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item.active svg { transform: translateY(-4px); filter: drop-shadow(0 4px 6px rgba(79, 70, 229, 0.4)); }
 
         .admin-float-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; background: var(--text); color: white; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 90; box-shadow: var(--shadow-float); cursor: pointer; transition: transform 0.2s; }
         .admin-float-btn:active { transform: scale(0.9); }
 
-        /* APP PAGES (SPA Style) */
+        /* APP PAGES */
         .app-page {
-            position: fixed; inset: 0; top: 0; bottom: 70px; /* Space for bottom nav */
-            background: var(--bg); z-index: 60; /* Higher than navbar (50) */
+            position: fixed; inset: 0; top: 0; bottom: 70px;
+            background: var(--bg); z-index: 60;
             display: none; flex-direction: column;
             overflow-y: auto;
         }
         .app-page.active { display: flex; }
+        #homePage.app-page { z-index: 1; top: 54px; }
 
-        /* Home page specific: needs to show navbar underneath or integrate it.
-           Since navbar is z-50, making home page z-60 will cover it unless we adjust.
-           Actually, for Home Page, we WANT the navbar visible.
-           So Home Page should use default z-index or handle top padding. */
-        #homePage.app-page {
-            z-index: 1; /* Below navbar */
-            top: 54px; /* Navbar height */
-        }
-
-        /* FULL SCREEN MODAL (For PDP & Admin) */
+        /* FULL SCREEN MODAL */
         .fs-modal { position: fixed; inset: 0; background: var(--bg); z-index: 2000; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
         .fs-modal.active { transform: translateY(0); }
         .fs-header { padding: 15px 20px; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 1.1rem; }
 
-        /* PRODUCT DETAIL PAGE */
+        /* PDP */
         .pdp-scroll { flex: 1; overflow-y: auto; padding-bottom: 80px; }
         .pdp-hero { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: white; }
         .pdp-info { background: white; padding: 20px; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
@@ -254,20 +269,18 @@
         }
         .btn-pdp-buy:active { transform: scale(0.98); }
 
-        /* CART PAGE MODIFIED */
+        /* CART */
         .cart-item { background: white; padding: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 15px; border-radius: 12px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); }
         .cart-thumb { width: 70px; height: 70px; object-fit: cover; border-radius: 8px; background: #f1f5f9; }
         .cart-info { flex: 1; }
         .cart-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 5px; line-height: 1.3; }
         .cart-price { color: var(--primary); font-weight: 700; }
         .cart-del { color: var(--danger); padding: 8px; cursor: pointer; background: #FEF2F2; border-radius: 8px; margin-left:5px; }
-
-        /* CHECKBOX STYLE */
         .cart-check { width: 22px; height: 22px; border-radius: 50%; border: 2px solid #cbd5e1; display:flex; align-items:center; justify-content:center; cursor:pointer; transition:0.2s; margin-right:5px; flex-shrink:0; }
         .cart-check.active { background: var(--primary); border-color: var(--primary); }
         .cart-check.active::after { content:'✔'; color:white; font-size:12px; }
 
-        /* ADMIN - SIDEBAR LAYOUT */
+        /* ADMIN */
         .admin-container { display: flex; height: 100%; overflow: hidden; }
         .admin-sidebar { width: 70px; background: white; border-right: 1px solid var(--border); display: flex; flex-direction: column; align-items: center; padding: 20px 0; gap: 15px; }
         .sidebar-item { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); transition: 0.2s; cursor: pointer; }
@@ -287,23 +300,12 @@
         .input-field:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         .form-label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 5px; display: block; }
         .btn-primary {
-    width: 100%;
-    background: var(--primary-gradient);
-    color: white;
-    border: none;
-    padding: 16px;
-    border-radius: var(--radius-md);
-    font-weight: 700;
-    font-size: 0.95rem;
-    cursor: pointer;
-    box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.5);
-    transition: all 0.2s;
-    letter-spacing: 0.5px;
-}
-.btn-primary:active {
-    transform: scale(0.97);
-    box-shadow: 0 4px 10px -4px rgba(79, 70, 229, 0.5);
-}
+            width: 100%;
+            background: var(--primary-gradient); color: white; border: none; padding: 16px; border-radius: var(--radius-md);
+            font-weight: 700; font-size: 0.95rem; cursor: pointer; box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.5);
+            transition: all 0.2s; letter-spacing: 0.5px;
+        }
+        .btn-primary:active { transform: scale(0.97); box-shadow: 0 4px 10px -4px rgba(79, 70, 229, 0.5); }
 
         .preview-img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; margin-top: 5px; background: #f1f5f9; display: none; }
         .preview-favicon { width: 48px; height: 48px; object-fit: contain; border-radius: 8px; margin-top: 5px; background: #f1f5f9; display: none; border: 1px solid var(--border); }
@@ -327,7 +329,6 @@
         .sheet-option { padding: 16px 24px; font-weight: 600; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
         .sheet-option.selected { color: var(--primary); background: #EFF6FF; }
 
-        /* ADMIN STATS */
         .stats-card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }
         .stats-card { background: white; padding: 16px; border-radius: 16px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); display:flex; flex-direction:column; justify-content:center; }
         .stats-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
@@ -379,7 +380,6 @@
         .cf-text { font-size: 0.9rem; color: #374151; font-weight: 500; }
         .cf-logo { margin-left: auto; width: 24px; opacity: 0.5; }
 
-        /* BANNER INPUT GROUP (UPDATED) */
         .banner-item { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
         .banner-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
         .banner-label { font-size:0.75rem; font-weight:700; color:var(--text-muted); }
@@ -446,13 +446,13 @@
 
     <div id="productDetailPage" class="fs-modal">
         <div class="fs-header">
-            <div onclick="closeProductDetail()" style="cursor:pointer; color:var(--text);">{{ICON_BACK}}</div>
-            <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center;" id="pdpTitleHeader">Detail Produk</span>
+            <div onclick="closeProductDetail()" style="cursor:pointer; color:var(--text); padding: 5px;">{{ICON_BACK}}</div>
+            <span style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-align:center; font-size:1rem;" id="pdpTitleHeader">Detail Produk</span>
             <div style="display:flex; gap:15px; align-items:center;">
                 <div onclick="shareCurrentProduct()" style="cursor:pointer; color:var(--text);">{{ICON_SHARE}}</div>
-                <div onclick="openCart()" style="cursor:pointer; color:var(--primary); position:relative;">
+                <div onclick="openCart()" style="cursor:pointer; color:var(--primary); position:relative; padding: 5px; display:flex; align-items:center;">
                     {{ICON_CART}}
-                    <div id="cartBadgePdp" class="cart-badge-nav" style="right:-5px; top:-5px; display:none;">0</div>
+                    <div id="cartBadgePdp" class="cart-badge-nav" style="display:none;">0</div>
                 </div>
             </div>
         </div>
@@ -490,13 +490,15 @@
             <span>Keranjang Saya</span>
             <div style="width:24px;"></div>
         </div>
-        <div id="cartList" style="flex:1; overflow-y:auto; padding:20px; padding-bottom:100px;"></div>
-        <div style="position:fixed; bottom:0; left:0; right:0; background:white; padding:20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; z-index:20;">
+        
+        <div id="cartList" style="flex:1; overflow-y:auto; padding:10px 10px 100px 10px;"></div>
+
+        <div class="cart-footer-bar">
              <div>
-                <div style="font-size:0.8rem; color:var(--text-muted);">Total Dipilih</div>
-                <div id="cartTotal" style="font-size:1.2rem; font-weight:800; color:var(--primary);">Rp 0</div>
+                <div style="font-size:0.75rem; color:var(--text-muted);">Total Dipilih</div>
+                <div id="cartTotal" style="font-size:1.1rem; font-weight:800; color:var(--primary);">Rp 0</div>
              </div>
-             <button class="btn-primary" style="width:auto; padding:12px 30px;" onclick="checkoutCart()">Checkout</button>
+             <button class="btn-primary" style="width:auto; padding:10px 25px; margin:0;" onclick="checkoutCart()">Checkout</button>
         </div>
     </div>
 
@@ -845,9 +847,6 @@
         });
     }
 
-    // ... (Fungsi-fungsi lain akan sama dengan wdp.js asli, tapi variabel ICONS dan Config di-inject server)
-    // Sisa Javascript akan di-paste di sini dari HTML_PART_2 tapi disesuaikan karena variabel global sudah didefinisikan di atas
-
     // --- AUTH SYSTEM (LOGIN/REGISTER) ---
         function checkSession() {
             const session = localStorage.getItem('user_session');
@@ -988,9 +987,7 @@
         // --- CORE FUNCTIONS ---
         function checkAdminSession(){ if(localStorage.getItem('adminKey')) document.getElementById('quickAdminBtn').style.display='flex'; else document.getElementById('quickAdminBtn').style.display='none'; }
 
-        // REPLACED LOADCONFIG TO USE INJECTED VARIABLES
         async function loadConfig(){
-            // Config sudah di-inject oleh server, kita hanya perlu renderCategories
             renderCategories();
         }
 
@@ -998,18 +995,14 @@
 
         // --- NAVIGATION & MODAL SYSTEM ---
         function navigateTo(pageId, el) {
-            // Hide all pages
             document.querySelectorAll('.app-page').forEach(p => p.classList.remove('active'));
-            // Show target
             document.getElementById(pageId).classList.add('active');
 
-            // Update Nav Icons
             if(el) {
                 document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
                 el.classList.add('active');
             }
 
-            // Init specific page logic
             if(pageId === 'cartPage') renderCartPage();
             if(pageId === 'historyPage') filterHist('all');
             if(pageId === 'assetsPage') renderAssetsPage();
@@ -1041,7 +1034,7 @@
             const count = cart.reduce((a,b)=>a+b.qty,0);
             const bad1 = document.getElementById('cartBadgeNav');
             const bad2 = document.getElementById('cartBadgePdp');
-            if(count > 0) { bad1.style.display='block'; bad1.innerText=count; bad2.style.display='block'; bad2.innerText=count; }
+            if(count > 0) { bad1.style.display='flex'; bad1.innerText=count; bad2.style.display='flex'; bad2.innerText=count; }
             else { bad1.style.display='none'; bad2.style.display='none'; }
         }
         function renderCartPage() {
@@ -1067,8 +1060,7 @@
                 updateCheckoutBtn();
             }
         }
-        // Backward compatibility if called from elsewhere
-        function openCart() { navigateTo('cartPage', document.querySelectorAll('.nav-item')[3]); }
+        function openCart() { navigateTo('cartPage', document.querySelectorAll('.nav-item')[3]); closeModal('productDetailPage'); }
 
         function toggleCartSelect(idx) {
             cart[idx].selected = !cart[idx].selected;
@@ -1093,11 +1085,9 @@
                 return toast("Mohon checkout satu per satu", true);
             }
 
-            // Process Single Item (Backend Limit)
             const item = selectedItems[0];
             currentCode = item.code;
 
-            // Re-use logic for single buy
             const html=`<div><h3 style="margin-top:0;">${item.name}</h3>
             <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin:20px 0;">
                 <span style="font-size:1.1rem; font-weight:bold;">Jumlah: ${item.qty}</span>
@@ -1116,7 +1106,6 @@
             const p = allProducts.find(x => x.code === code);
             if(!p) return;
 
-            // Populate PDP
             document.getElementById('pdpImage').src = p.img || FAVICON_URL;
             document.getElementById('pdpPrice').innerText = p.price === 0 ? 'GRATIS' : 'Rp ' + p.price.toLocaleString();
             document.getElementById('pdpName').innerText = p.name;
@@ -1143,7 +1132,6 @@
         }
 
         function buyCurrent() {
-            // Logic Beli Langsung (Open Modal Qty)
             const p = allProducts.find(x => x.code === currentCode);
             if(!p || p.stock < 1) return toast("Stok Habis");
 
@@ -1227,7 +1215,6 @@
             });
             c.innerHTML = h + '</div>' + d + '</div>';
 
-            // Dots logic
             const slider = document.getElementById('bannerSlider');
             slider.addEventListener('scroll', () => {
                  const index = Math.round(slider.scrollLeft / slider.offsetWidth);
@@ -1236,7 +1223,6 @@
                  });
             });
 
-            // Auto scroll
             if(slider) {
                 setInterval(() => {
                     const w = slider.offsetWidth;
@@ -1252,7 +1238,6 @@
             const q = document.getElementById('searchInput').value.toLowerCase();
             let f = allProducts.filter(p => (p.name.toLowerCase().includes(q)) && (currentCat==='Semua'||p.category===currentCat));
 
-            // Sort
             if(currentSort==='price_low') f.sort((a,b)=>a.price-b.price);
             else if(currentSort==='price_high') f.sort((a,b)=>b.price-a.price);
             else f.reverse();
@@ -1314,7 +1299,6 @@
             if(!isOpen) e.classList.add('open');
         }
 
-        // --- ADMIN HELPERS ---
         function renderAdminCats(){
             const d=document.getElementById('confCatList'); d.innerHTML='';
             CATEGORIES.forEach((c,i)=>d.innerHTML+=`<div class="tag">${c} <span class="tag-del" onclick="admRemCat(${i})">${ICONS.trash}</span></div>`);
@@ -1332,7 +1316,6 @@
         function admRemCat(i){ if(confirm("Hapus?")){CATEGORIES.splice(i,1); renderAdminCats(); admSaveConfigSilent();} }
 
         async function admSaveConfigSilent(){
-             // USE GLOBAL VARIABLES FOR SAFETY
              const b = {
                 banners: BANNERS,
                 cats: CATEGORIES,
@@ -1344,7 +1327,6 @@
              await fetch('/api/admin/save-config',{method:'POST',headers:{'Content-Type': 'application/json', 'Admin-Key':localStorage.getItem('adminKey')},body:JSON.stringify(b)});
         }
         function initAdminConfUI(){
-            // Force value update from global variables
             document.getElementById('confFavicon').value = FAVICON_URL || "";
             document.getElementById('confOgTitle').value = OG_TITLE || "";
             document.getElementById('confOgDesc').value = OG_DESC || "";
@@ -1352,26 +1334,20 @@
             document.getElementById('confStoreName').value = STORE_NAME || "";
             document.getElementById('confContact').value = CONTACT_URL || "";
 
-            // INIT BANNER INPUTS (NEW LOGIC)
             renderAdminBanners();
-
-            // Force previews update
             previewImg(document.getElementById('confFavicon'), 'prevFav');
             previewImg(document.getElementById('confOgImage'), 'prevOg');
             previewBanners();
         }
 
-        // NEW DYNAMIC BANNER LOGIC
         function renderAdminBanners() {
             const c = document.getElementById('bannerListContainer');
             c.innerHTML = '';
             if(!BANNERS || BANNERS.length === 0) return;
             BANNERS.forEach((url, i) => {
-                // Logic for Move Buttons Visibility
                 const isFirst = (i === 0);
                 const isLast = (i === BANNERS.length - 1);
 
-                // Only render buttons if not first/last to avoid errors
                 let moveUpBtn = isFirst ? '' : `<div class="btn-icon-sm" onclick="admMoveBanner(${i}, -1)">${ICONS.arrowUp}</div>`;
                 let moveDownBtn = isLast ? '' : `<div class="btn-icon-sm" onclick="admMoveBanner(${i}, 1)">${ICONS.arrowDown}</div>`;
 
@@ -1392,24 +1368,20 @@
         }
 
         function admMoveBanner(index, direction) {
-            // 1. Ambil data terbaru dari input dulu (PENTING)
             const inputs = document.querySelectorAll('.banner-url-input');
             BANNERS = Array.from(inputs).map(i => i.value);
 
-            // 2. Lakukan Swap
             if (direction === -1 && index > 0) {
                  [BANNERS[index], BANNERS[index - 1]] = [BANNERS[index - 1], BANNERS[index]];
             } else if (direction === 1 && index < BANNERS.length - 1) {
                  [BANNERS[index], BANNERS[index + 1]] = [BANNERS[index + 1], BANNERS[index]];
             }
 
-            // 3. Render ulang
             renderAdminBanners();
             previewBanners();
         }
 
         function admAddBanner() {
-            // Ambil data dulu biar gak hilang yg diketik
             const inputs = document.querySelectorAll('.banner-url-input');
             if(inputs.length > 0) BANNERS = Array.from(inputs).map(i => i.value);
 
@@ -1419,7 +1391,6 @@
         }
 
         function admRemoveBanner(index) {
-            // Ambil data dulu
             const inputs = document.querySelectorAll('.banner-url-input');
             BANNERS = Array.from(inputs).map(i => i.value);
 
@@ -1434,7 +1405,6 @@
         }
 
         function previewBanners() {
-            // GATHER FROM INPUTS FIRST for live preview
             const inputs = document.querySelectorAll('.banner-url-input');
             const urls = [];
             inputs.forEach(input => {
@@ -1475,7 +1445,6 @@
                                 <div class="tx-right">Rp ${(s.price||0).toLocaleString()}</div>
                             </div>`;
                         });
-                        // Disable NEXT if less than 7 items
                         document.getElementById('btnNextPage').disabled = (d.history.length < 7);
                     }
                     l.innerHTML=html;
@@ -1484,11 +1453,9 @@
         }
 
         async function admSaveConfig(){
-            // GATHER BANNERS FROM DYNAMIC INPUTS
             const bannerInputs = document.querySelectorAll('.banner-url-input');
             const banners = Array.from(bannerInputs).map(i => i.value.trim()).filter(x => x);
 
-            // GATHER OTHER CONFIGS
             const newOgTitle = document.getElementById('confOgTitle').value;
             const newOgDesc = document.getElementById('confOgDesc').value;
             const newFavicon = document.getElementById('confFavicon').value;
@@ -1511,7 +1478,6 @@
             const data = await res.json();
 
             if(data.success) {
-                // UPDATE GLOBAL VARIABLES IMMEDIATELY
                 BANNERS = banners;
                 OG_TITLE = newOgTitle;
                 OG_DESC = newOgDesc;
@@ -1532,34 +1498,25 @@
 
         // --- USER FUNCTIONS ---
         function openInputName(){ openModal('inputNameModal'); }
-        function closeUserMenu(){ } // No longer needed
         function renderProfilePage(){
-            // 1. Ambil data riwayat transaksi
             const h = getHistory();
             let spend = 0;
             let assets = 0;
-
-            // 2. Hitung total uang keluar & jumlah aset
             h.forEach(i => {
                 if(i.status === 'PAID') {
-                    spend += (i.price || 0); // Tambah harga ke total belanja
-
-                    // Hitung jumlah akun/aset
+                    spend += (i.price || 0);
                     if(Array.isArray(i.content)) assets += i.content.length;
                     else assets++;
                 }
             });
 
-            // 3. Tampilkan angka hasil hitungan ke layar
             const elSpend = document.getElementById('uStatSpend');
             const elAssets = document.getElementById('uStatAssets');
 
             if(elSpend) elSpend.innerText = 'Rp ' + spend.toLocaleString();
             if(elAssets) elAssets.innerText = assets;
         }
-        function openUserMenu(){ navigateTo('profilePage', document.querySelectorAll('.nav-item')[4]); }
 
-        // Fungsi Baru: Untuk memproses ganti foto profil
         function changeProfilePic(input) {
             const f = input.files[0];
             if(!f) return;
@@ -1569,20 +1526,16 @@
                 i.onload = function() {
                     const c = document.createElement('canvas');
                     const ctx = c.getContext('2d');
-                    // Kecilkan gambar biar ringan disimpan di browser
                     const s = 100/i.width;
                     c.width = 100; c.height = i.height*s;
                     ctx.drawImage(i,0,0,c.width,c.height);
                     const newData = c.toDataURL('image/jpeg', 0.7);
 
-                    // Simpan data gambar ke LocalStorage browser
                     const session = localStorage.getItem('user_session');
                     if(session) {
                         let userDb = JSON.parse(localStorage.getItem('user_db_' + session));
                         userDb.image = newData;
                         localStorage.setItem('user_db_' + session, JSON.stringify(userDb));
-
-                        // Perbarui foto di layar
                         updateProfileUI(userDb);
                         toast("Foto Profil Diperbarui");
                     }
@@ -1592,44 +1545,28 @@
             r.readAsDataURL(f);
         }
         function editProfileName() {
-            // 1. Minta input nama baru
             const currentSession = localStorage.getItem('user_session');
             const oldName = currentSession;
             let newName = prompt("Masukkan Nama Baru:", oldName);
 
-            // 2. Validasi input
-            if (!newName) return; // Jika batal/kosong
+            if (!newName) return;
             newName = newName.trim();
-            if (newName === oldName) return; // Jika nama sama saja
+            if (newName === oldName) return;
             if (newName.length < 3) return toast("Nama terlalu pendek (min 3 huruf)", true);
 
-            // 3. Cek apakah nama sudah dipakai orang lain di browser ini
             if (localStorage.getItem('user_db_' + newName)) {
                 return toast("Nama sudah digunakan user lain!", true);
             }
 
-            // 4. Proses Ganti Nama (Migrasi Data)
             try {
-                // Ambil data user lama
                 const userData = JSON.parse(localStorage.getItem('user_db_' + oldName));
-
-                // Update properti username di dalam data
                 userData.username = newName;
-
-                // Simpan ke kunci baru (user_db_NAMABARU)
                 localStorage.setItem('user_db_' + newName, JSON.stringify(userData));
-
-                // Update session aktif
                 localStorage.setItem('user_session', newName);
                 currentUser = newName;
-
-                // Hapus data kunci lama agar bersih
                 localStorage.removeItem('user_db_' + oldName);
-
-                // Update Tampilan
                 updateProfileUI(userData);
                 toast("Nama berhasil diubah!");
-
             } catch (e) {
                 console.error(e);
                 toast("Gagal mengubah nama", true);
@@ -1657,7 +1594,6 @@
                 </div>`;
             });
         }
-        function openHistory(){ navigateTo('historyPage', document.querySelectorAll('.nav-item')[1]); }
 
         function showHistoryDetail(oid) {
             const item = getHistory().find(x => x.oid === oid);
@@ -1683,38 +1619,9 @@
                 l.innerHTML+=`<div class="asset-card" style="background:white;border-radius:12px;padding:16px;border:1px solid var(--border);margin-bottom:12px;"><strong>${i.name}</strong>${c}</div>`;
             });
         }
-        function openAssets(){ navigateTo('assetsPage', document.querySelectorAll('.nav-item')[2]); }
 
         function goToHome(){
-             navigateTo('homePage', document.querySelectorAll('.nav-item')[4]); // actually nav index 0 is home in UI? Wait, UI has Home at index 4?
-             // Let's check bottom-nav structure
-             // 0: Chat, 1: History, 2: Assets, 3: Cart, 4: Home (Belanja), 5: User
-             // The structure in HTML is: Chat(0), History(1), Assets(2), Cart(3), Home(4), User(5).
-             // But usually Home is center or first. In HTML:
-             /*
-                <div class="nav-item" onclick="navigateTo('homePage', this)">Belanja</div> -- Index 0 now in my update!
-                <div class="nav-item" onclick="navigateTo('historyPage', this)">Riwayat</div> -- Index 1
-                <div class="nav-item" onclick="navigateTo('assetsPage', this)">Aset</div> -- Index 2
-                <div class="nav-item" onclick="navigateTo('cartPage', this)">Keranjang</div> -- Index 3
-                <div class="nav-item" onclick="navigateTo('profilePage', this)">Saya</div> -- Index 4
-             */
-             // I updated HTML order in previous step to be standard tab bar?
-             // Let me check my previous edit.
-             // The previous edit to .bottom-nav was:
-             /*
-                <div class="nav-item" onclick="navigateTo('homePage', this)">Belanja</div>
-                <div class="nav-item" onclick="navigateTo('historyPage', this)">Riwayat</div>
-                <div class="nav-item" onclick="navigateTo('assetsPage', this)">Aset</div>
-                <div class="nav-item" onclick="navigateTo('cartPage', this)">Keranjang</div>
-                <div class="nav-item" onclick="navigateTo('profilePage', this)">Saya</div>
-             */
-             // So Home is index 0.
-             // But wait, openHistory is index 1.
-             // openAssets is index 2.
-             // openCart is index 3.
-             // openUserMenu is index 4.
              navigateTo('homePage', document.querySelectorAll('.nav-item')[0]);
-
              closeModal('productDetailPage');
         }
 
@@ -1734,7 +1641,6 @@
         async function loadProducts(){try{const r=await fetch('/api/products');const d=await r.json();allProducts=d.products;applyFilter();document.getElementById('loading').style.display='none'}catch{}}
         async function doLogin(){ const p=document.getElementById('adminPass').value; const r=await fetch('/api/admin/login',{method:'POST',headers:{'Content-Type': 'application/json'},body:JSON.stringify({password:p})}); const d=await r.json(); if(d.success){ localStorage.setItem('adminKey',p); closeModal('loginModal'); checkAdminSession(); toast("Login OK"); } else toast("Salah"); }
         function doLogout(){ localStorage.removeItem('adminKey'); closeAdminMenu(); checkAdminSession(); }
-        // ... (Fungsi Admin Add/Edit/Delete/Stock sama seperti kode sebelumnya, hanya memastikan UI terhubung) ...
         function admOpenStockSelector(){ const l=document.getElementById('productSelectList');l.innerHTML='';allProducts.forEach(p=>{l.innerHTML+=`<div onclick="admFetchStock('${p.code}', '${p.name}')" style="padding:10px;border-bottom:1px solid #eee;cursor:pointer;">${p.name}</div>`});openModal('selectProductModal'); }
         async function admFetchStock(c, n){ activeStockCode=c; closeModal('selectProductModal'); document.getElementById('stkModalName').innerText=n||c; openModal('stockDetailModal'); const r=await fetch('/api/admin/get-stock?code='+c,{headers:{'Admin-Key':localStorage.getItem('adminKey')}}); const d=await r.json(); const l=document.getElementById('stockListContainer'); l.innerHTML=''; if(d.stock.length===0)l.innerHTML='<p style="color:#888;">Stok Kosong</p>'; else d.stock.forEach((s,i)=>l.innerHTML+=`<div class="stock-item"><span>${s.substring(0,25)}...</span><span style="color:var(--danger);cursor:pointer" onclick="admDelStockDirect(${i})">{{ICON_TRASH}}</span></div>`); }
         async function admAddStockDirect(){ const v=document.getElementById('newStockDirect').value; await fetch('/api/admin/stock-action',{method:'POST',headers:{'Content-Type': 'application/json', 'Admin-Key':localStorage.getItem('adminKey')},body:JSON.stringify({code:activeStockCode,action:'add',data:v})}); document.getElementById('newStockDirect').value=''; admFetchStock(activeStockCode, document.getElementById('stkModalName').innerText); toast("Stok Ditambah"); loadProducts(); }
@@ -1742,7 +1648,6 @@
         async function admAdd(){ await fetch('/api/admin/add-product',{method:'POST',headers:{'Content-Type': 'application/json', 'Admin-Key':localStorage.getItem('adminKey')},body:JSON.stringify({code:document.getElementById('nCode').value,name:document.getElementById('nName').value,price:document.getElementById('nPrice').value,category:document.getElementById('nCat').value,img:document.getElementById('nImg').value,desc:document.getElementById('nDesc').value,stockData:document.getElementById('nStock').value})}); toast("Disimpan"); loadProducts(); }
         function loadEditForm(){ const c=document.getElementById('editProdSelect').value; const p=allProducts.find(x=>x.code===c); if(p){document.getElementById('editFormArea').style.display='block'; document.getElementById('editPrice').value=p.price; document.getElementById('editImg').value=p.img||''; document.getElementById('editDesc').value=p.desc||''; document.getElementById('editCat').value=p.category||'';} }
 
-        // VOUCHER LOGIC
         function renderVoucherTargetOptions() {
             const s = document.getElementById('vTarget');
             s.innerHTML = '<option value="ALL">Semua Produk</option>';
