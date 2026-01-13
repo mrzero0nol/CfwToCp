@@ -196,7 +196,25 @@
         .admin-float-btn { position: fixed; bottom: 90px; right: 20px; width: 50px; height: 50px; background: var(--text); color: white; border-radius: 50%; display: none; align-items: center; justify-content: center; z-index: 90; box-shadow: var(--shadow-float); cursor: pointer; transition: transform 0.2s; }
         .admin-float-btn:active { transform: scale(0.9); }
 
-        /* FULL SCREEN MODAL */
+        /* APP PAGES (SPA Style) */
+        .app-page {
+            position: fixed; inset: 0; top: 0; bottom: 70px; /* Space for bottom nav */
+            background: var(--bg); z-index: 60; /* Higher than navbar (50) */
+            display: none; flex-direction: column;
+            overflow-y: auto;
+        }
+        .app-page.active { display: flex; }
+
+        /* Home page specific: needs to show navbar underneath or integrate it.
+           Since navbar is z-50, making home page z-60 will cover it unless we adjust.
+           Actually, for Home Page, we WANT the navbar visible.
+           So Home Page should use default z-index or handle top padding. */
+        #homePage.app-page {
+            z-index: 1; /* Below navbar */
+            top: 54px; /* Navbar height */
+        }
+
+        /* FULL SCREEN MODAL (For PDP & Admin) */
         .fs-modal { position: fixed; inset: 0; background: var(--bg); z-index: 2000; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column; }
         .fs-modal.active { transform: translateY(0); }
         .fs-header { padding: 15px 20px; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: 1.1rem; }
@@ -382,46 +400,45 @@
                 <input type="text" id="searchInput" class="nav-search-box" placeholder="Cari..." onkeyup="handleSearch(event)">
             </div>
             <div class="nav-filter-btn" onclick="openSheet()">{{ICON_FILTER}}</div>
+            <div class="nav-filter-btn" onclick="openContact()">{{ICON_CHAT}}</div>
         </div>
     </nav>
 
-    <div id="bannerCarousel" class="banner-container"></div>
+    <div id="homePage" class="app-page active" style="padding-bottom: 20px;">
+        <div id="bannerCarousel" class="banner-container"></div>
 
-    <div class="cat-scroll" id="catList"></div>
+        <div class="cat-scroll" id="catList"></div>
 
-    <div class="container">
-        <div id="loading" class="loader"></div>
-        <div id="productList" class="grid"></div>
-        <div id="noResults" style="display:none; text-align:center; padding:50px; color:#94A3B8;">
-            Produk tidak ditemukan.
+        <div class="container">
+            <div id="loading" class="loader"></div>
+            <div id="productList" class="grid"></div>
+            <div id="noResults" style="display:none; text-align:center; padding:50px; color:#94A3B8;">
+                Produk tidak ditemukan.
+            </div>
         </div>
     </div>
 
     <div id="quickAdminBtn" class="admin-float-btn" onclick="openAdminMenu()">{{ICON_SETTINGS}}</div>
 
     <div class="bottom-nav">
-        <div class="nav-item" onclick="openContact()">
-            {{ICON_CHAT}}
-            <span>Chat</span>
+        <div class="nav-item" onclick="navigateTo('homePage', this)">
+            {{ICON_BAG}}
+            <span>Belanja</span>
         </div>
-        <div class="nav-item" onclick="openHistory()">
+        <div class="nav-item" onclick="navigateTo('historyPage', this)">
             {{ICON_HISTORY}}
             <span>Riwayat</span>
         </div>
-        <div class="nav-item" onclick="openAssets()">
+        <div class="nav-item" onclick="navigateTo('assetsPage', this)">
             {{ICON_WALLET}}
             <span>Aset</span>
         </div>
-        <div class="nav-item" onclick="openCart()">
+        <div class="nav-item" onclick="navigateTo('cartPage', this)">
             {{ICON_CART}}
             <span>Keranjang</span>
             <div id="cartBadgeNav" class="cart-badge-nav" style="display:none">0</div>
         </div>
-        <div class="nav-item active" onclick="goToHome()" id="navHome">
-            {{ICON_BAG}}
-            <span>Belanja</span>
-        </div>
-        <div class="nav-item" onclick="openUserMenu()">
+        <div class="nav-item" onclick="navigateTo('profilePage', this)">
             {{ICON_USER}}
             <span>Saya</span>
         </div>
@@ -467,9 +484,9 @@
         </div>
     </div>
 
-    <div id="cartPage" class="fs-modal">
+    <div id="cartPage" class="app-page">
         <div class="fs-header">
-            <div onclick="closeModal('cartPage')" style="cursor:pointer; color:var(--text);">{{ICON_BACK}}</div>
+            <div style="width:24px;"></div>
             <span>Keranjang Saya</span>
             <div style="width:24px;"></div>
         </div>
@@ -679,8 +696,8 @@
         </div>
     </div>
 
-    <div id="userMenuPage" class="fs-modal">
-        <div class="fs-header"><button style="background:none; border:none;" onclick="closeUserMenu()">{{ICON_BACK}}</button><span>Profil Saya</span></div>
+    <div id="profilePage" class="app-page">
+        <div class="fs-header"><div style="width:24px;"></div><span>Profil Saya</span><div style="width:24px;"></div></div>
         <div style="padding:30px; text-align:center;">
              <div style="position:relative; width:80px; height:80px; margin:0 auto 15px;">
                  <div style="width:100%;height:100%;background:var(--primary);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:bold;box-shadow:0 10px 25px -5px rgba(59,130,246,0.4); background-size:cover; background-position:center;" id="profileAvatar">U</div>
@@ -753,8 +770,8 @@
         </div>
     </div>
 
-    <div id="historyModal" class="fs-modal">
-          <div class="fs-header"><button style="background:none; border:none;" onclick="closeModal('historyModal')">{{ICON_BACK}}</button><span>Riwayat Pesanan</span></div>
+    <div id="historyPage" class="app-page">
+          <div class="fs-header"><div style="width:24px;"></div><span>Riwayat Pesanan</span><div style="width:24px;"></div></div>
           <div style="padding:15px; display:flex; gap:10px; overflow-x:auto;">
               <button onclick="filterHist('all')" class="cat-pill active" id="tabAll">Semua</button>
               <button onclick="filterHist('pending')" class="cat-pill" id="tabPending">Belum Bayar</button>
@@ -763,8 +780,8 @@
           <div id="histList" style="flex:1; overflow-y:auto; padding:0 15px 20px;"></div>
     </div>
 
-    <div id="myProductsModal" class="fs-modal">
-        <div class="fs-header"><button style="background:none; border:none;" onclick="closeModal('myProductsModal')">{{ICON_BACK}}</button><span>Aset Saya</span></div>
+    <div id="assetsPage" class="app-page">
+        <div class="fs-header"><div style="width:24px;"></div><span>Aset Saya</span><div style="width:24px;"></div></div>
         <div id="myProdList" style="flex:1; overflow-y:auto; padding:20px;"></div>
     </div>
 
@@ -979,7 +996,26 @@
 
         function openContact() { window.open(CONTACT_URL, '_blank'); }
 
-        // --- MODAL SYSTEM ---
+        // --- NAVIGATION & MODAL SYSTEM ---
+        function navigateTo(pageId, el) {
+            // Hide all pages
+            document.querySelectorAll('.app-page').forEach(p => p.classList.remove('active'));
+            // Show target
+            document.getElementById(pageId).classList.add('active');
+
+            // Update Nav Icons
+            if(el) {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                el.classList.add('active');
+            }
+
+            // Init specific page logic
+            if(pageId === 'cartPage') renderCartPage();
+            if(pageId === 'historyPage') filterHist('all');
+            if(pageId === 'assetsPage') renderAssetsPage();
+            if(pageId === 'profilePage') renderProfilePage();
+        }
+
         function openModal(id){
             window.history.pushState({modal: id}, '');
             document.getElementById(id).classList.add('active');
@@ -1008,7 +1044,7 @@
             if(count > 0) { bad1.style.display='block'; bad1.innerText=count; bad2.style.display='block'; bad2.innerText=count; }
             else { bad1.style.display='none'; bad2.style.display='none'; }
         }
-        function openCart() {
+        function renderCartPage() {
             const l = document.getElementById('cartList');
             l.innerHTML = '';
             if(cart.length === 0) {
@@ -1030,12 +1066,13 @@
                 });
                 updateCheckoutBtn();
             }
-            openModal('cartPage');
         }
+        // Backward compatibility if called from elsewhere
+        function openCart() { navigateTo('cartPage', document.querySelectorAll('.nav-item')[3]); }
 
         function toggleCartSelect(idx) {
             cart[idx].selected = !cart[idx].selected;
-            openCart(); // Re-render to show checkbox state
+            renderCartPage();
         }
 
         function updateCheckoutBtn() {
@@ -1046,7 +1083,7 @@
             document.getElementById('cartTotal').innerText = 'Rp ' + total.toLocaleString();
         }
 
-        function removeFromCart(idx) { cart.splice(idx, 1); saveCart(); openCart(); }
+        function removeFromCart(idx) { cart.splice(idx, 1); saveCart(); renderCartPage(); }
 
         function checkoutCart() {
             const selectedItems = cart.filter(i => i.selected);
@@ -1495,8 +1532,8 @@
 
         // --- USER FUNCTIONS ---
         function openInputName(){ openModal('inputNameModal'); }
-        function closeUserMenu(){ closeModal('userMenuPage'); }
-        function openUserMenu(){
+        function closeUserMenu(){ } // No longer needed
+        function renderProfilePage(){
             // 1. Ambil data riwayat transaksi
             const h = getHistory();
             let spend = 0;
@@ -1513,17 +1550,14 @@
                 }
             });
 
-            // 3. Tampilkan angka hasil hitungan ke layar (HTML yang tadi kita buat)
+            // 3. Tampilkan angka hasil hitungan ke layar
             const elSpend = document.getElementById('uStatSpend');
             const elAssets = document.getElementById('uStatAssets');
 
-            // Cek dulu elemennya ada atau tidak untuk menghindari error
             if(elSpend) elSpend.innerText = 'Rp ' + spend.toLocaleString();
             if(elAssets) elAssets.innerText = assets;
-
-            // 4. Baru buka menu profilnya
-            openModal('userMenuPage');
         }
+        function openUserMenu(){ navigateTo('profilePage', document.querySelectorAll('.nav-item')[4]); }
 
         // Fungsi Baru: Untuk memproses ganti foto profil
         function changeProfilePic(input) {
@@ -1623,7 +1657,7 @@
                 </div>`;
             });
         }
-        function openHistory(){ openModal('historyModal'); filterHist('all'); }
+        function openHistory(){ navigateTo('historyPage', document.querySelectorAll('.nav-item')[1]); }
 
         function showHistoryDetail(oid) {
             const item = getHistory().find(x => x.oid === oid);
@@ -1639,7 +1673,7 @@
             }
         }
 
-        function openAssets(){
+        function renderAssetsPage(){
             const h=getHistory().filter(x=>x.status==='PAID');
             const l=document.getElementById('myProdList'); l.innerHTML='';
             if(h.length===0) l.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-muted);">'+ICONS.wallet+'<br>Belum ada aset</div>';
@@ -1648,10 +1682,40 @@
                 if(Array.isArray(i.content)) i.content.forEach(x=> c+=`<div class="acc-box" style="background:#F8FAFC;padding:10px;border-radius:8px;border:1px dashed var(--border);margin-top:8px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:monospace;font-weight:600;">${x}</span><div style="cursor:pointer;color:var(--primary);font-size:0.8rem;" onclick="copyText('${x}')">Salin</div></div>`);
                 l.innerHTML+=`<div class="asset-card" style="background:white;border-radius:12px;padding:16px;border:1px solid var(--border);margin-bottom:12px;"><strong>${i.name}</strong>${c}</div>`;
             });
-            openModal('myProductsModal');
         }
+        function openAssets(){ navigateTo('assetsPage', document.querySelectorAll('.nav-item')[2]); }
+
         function goToHome(){
-             closeModal('historyModal'); closeModal('myProductsModal'); closeModal('userMenuPage'); closeModal('cartPage'); closeModal('productDetailPage');
+             navigateTo('homePage', document.querySelectorAll('.nav-item')[4]); // actually nav index 0 is home in UI? Wait, UI has Home at index 4?
+             // Let's check bottom-nav structure
+             // 0: Chat, 1: History, 2: Assets, 3: Cart, 4: Home (Belanja), 5: User
+             // The structure in HTML is: Chat(0), History(1), Assets(2), Cart(3), Home(4), User(5).
+             // But usually Home is center or first. In HTML:
+             /*
+                <div class="nav-item" onclick="navigateTo('homePage', this)">Belanja</div> -- Index 0 now in my update!
+                <div class="nav-item" onclick="navigateTo('historyPage', this)">Riwayat</div> -- Index 1
+                <div class="nav-item" onclick="navigateTo('assetsPage', this)">Aset</div> -- Index 2
+                <div class="nav-item" onclick="navigateTo('cartPage', this)">Keranjang</div> -- Index 3
+                <div class="nav-item" onclick="navigateTo('profilePage', this)">Saya</div> -- Index 4
+             */
+             // I updated HTML order in previous step to be standard tab bar?
+             // Let me check my previous edit.
+             // The previous edit to .bottom-nav was:
+             /*
+                <div class="nav-item" onclick="navigateTo('homePage', this)">Belanja</div>
+                <div class="nav-item" onclick="navigateTo('historyPage', this)">Riwayat</div>
+                <div class="nav-item" onclick="navigateTo('assetsPage', this)">Aset</div>
+                <div class="nav-item" onclick="navigateTo('cartPage', this)">Keranjang</div>
+                <div class="nav-item" onclick="navigateTo('profilePage', this)">Saya</div>
+             */
+             // So Home is index 0.
+             // But wait, openHistory is index 1.
+             // openAssets is index 2.
+             // openCart is index 3.
+             // openUserMenu is index 4.
+             navigateTo('homePage', document.querySelectorAll('.nav-item')[0]);
+
+             closeModal('productDetailPage');
         }
 
         // --- MISC ---
