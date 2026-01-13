@@ -1,0 +1,60 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'user') DEFAULT 'user',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    name VARCHAR(255) NOT NULL,
+    price DECIMAL(15, 2) NOT NULL DEFAULT 0,
+    category VARCHAR(100),
+    description TEXT,
+    image_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_stocks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    product_code VARCHAR(50) NOT NULL,
+    account_data TEXT NOT NULL,
+    is_sold BOOLEAN DEFAULT FALSE,
+    order_id VARCHAR(50) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX (product_code),
+    INDEX (is_sold)
+);
+
+CREATE TABLE IF NOT EXISTS vouchers (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    amount DECIMAL(15, 2) NOT NULL,
+    valid_for VARCHAR(50) DEFAULT 'ALL',
+    usage_limit INT DEFAULT 0,
+    usage_count INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id VARCHAR(50) NOT NULL UNIQUE,
+    user_id INT NULL,
+    product_code VARCHAR(50) NOT NULL,
+    quantity INT NOT NULL,
+    total_amount DECIMAL(15, 2) NOT NULL,
+    voucher_code VARCHAR(50) NULL,
+    status ENUM('PENDING', 'PAID', 'CLAIMED', 'FAILED') DEFAULT 'PENDING',
+    payment_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS app_config (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    conf_key VARCHAR(100) NOT NULL UNIQUE,
+    conf_value LONGTEXT
+);

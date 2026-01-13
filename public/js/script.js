@@ -142,46 +142,61 @@ function handleRegImg(input) {
     r.readAsDataURL(f);
 }
 
-function registerUser() {
+async function registerUser() {
     if (!captchaVerified) return toast("Silakan verifikasi captcha", true);
     const u = document.getElementById('regUser').value.trim();
     const p = document.getElementById('regPass').value.trim();
 
     if (!u || !p) return toast("Isi Username & Password", true);
-    if (localStorage.getItem('user_db_' + u)) return toast("Username sudah ada", true);
 
-    const userData = {
-        username: u,
-        password: p,
-        image: tempRegImg,
-        joined: new Date().toISOString()
-    };
+    try {
+        const r = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        const d = await r.json();
 
-    localStorage.setItem('user_db_' + u, JSON.stringify(userData));
-    localStorage.setItem('user_session', u);
-
-    toast("Registrasi Berhasil!");
-    currentUser = u;
-    updateProfileUI(userData);
-    document.getElementById('authModal').classList.remove('active');
+        if (d.success) {
+            toast("Registrasi Berhasil! Silakan Login.");
+            switchAuth('login');
+        } else {
+            toast(d.message || "Gagal Daftar", true);
+        }
+    } catch(e) {
+        toast("Error Koneksi", true);
+    }
 }
 
-function loginUser() {
+async function loginUser() {
     if (!captchaVerified) return toast("Silakan verifikasi captcha", true);
     const u = document.getElementById('loginUser').value.trim();
     const p = document.getElementById('loginPass').value.trim();
 
-    const stored = localStorage.getItem('user_db_' + u);
-    if (!stored) return toast("User tidak ditemukan", true);
+    try {
+        const r = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        const d = await r.json();
 
-    const userData = JSON.parse(stored);
-    if (userData.password !== p) return toast("Password Salah", true);
+        if (d.success) {
+            localStorage.setItem('user_session', d.user.username);
+            // Simpan profil lokal agar UI tidak blank
+            const userData = { username: d.user.username, image: '' };
+            localStorage.setItem('user_db_' + d.user.username, JSON.stringify(userData));
 
-    localStorage.setItem('user_session', u);
-    toast("Login Berhasil");
-    currentUser = u;
-    updateProfileUI(userData);
-    document.getElementById('authModal').classList.remove('active');
+            toast("Login Berhasil");
+            currentUser = d.user.username;
+            updateProfileUI(userData);
+            document.getElementById('authModal').classList.remove('active');
+        } else {
+            toast(d.message || "Gagal Login", true);
+        }
+    } catch(e) {
+        toast("Error Koneksi", true);
+    }
 }
 
 function logoutUser() {
