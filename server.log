@@ -1,0 +1,12 @@
+
+> toko-digital-cpanel@1.0.0 start
+> node server.js
+
+Server is running on port 3000
+[2026-01-13T15:08:44.750Z] Database Connection Failed:
+TIP: Pastikan variabel lingkungan (Environment Variables) DB_HOST, DB_USER, DB_PASS, DB_NAME sudah diatur dengan benar di cPanel atau file .env.
+
+[2026-01-13T15:14:29.259Z] DB Get Error (CONFIG_STORE):
+[2026-01-13T15:14:30.008Z] DB Get Error (LIST_PRODUCTS):
+[2026-01-13T15:26:20.854Z] DB Get Error (CONFIG_STORE):
+[2026-01-13T15:26:20.900Z] DB Get Error (LIST_PRODUCTS):
