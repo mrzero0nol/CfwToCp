@@ -312,15 +312,13 @@
     const ICONS = {{ICONS_JSON}};
     let BANNERS = {{BANNERS_JSON}};
     let CATEGORIES = {{CATEGORIES_JSON}};
+    let STORE_NAME = "{{STORE_NAME}}";
+    let FAVICON_URL = "{{STORE_FAVICON}}";
+    let CONTACT_URL = "{{CONTACT_URL}}";
+    let OG_TITLE = "{{OG_TITLE}}";
+    let OG_DESC = "{{OG_DESC}}";
+    let OG_IMAGE_URL = "{{OG_IMAGE}}";
     </script>
     <script src="/js/script.js" defer></script>
-    <script>
-        // Page Specific Init
-        document.addEventListener('DOMContentLoaded', async () => {
-            initBannerSlider();
-            renderCategories();
-            await loadProducts(); // Load products last
-        });
-    </script>
 </body>
 </html>

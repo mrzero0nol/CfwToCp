@@ -27,8 +27,22 @@ async function init() {
     checkSession();
     loadCart();
     checkAdminSession();
-    // await loadProducts(); // Don't load everywhere, specific page will call it
+    await loadProducts(); // Fetch awal produk
+    initBannerSlider();
+    renderCategories();
     updateCartCount();
+
+    // CHECK URL ROUTING
+    const path = window.location.pathname;
+    if (path.startsWith('/p/')) {
+        const code = path.split('/')[2];
+        if (code) {
+            if (allProducts.length > 0) {
+                const p = allProducts.find(x => x.code === code);
+                if (p) openBuy(code);
+            }
+        }
+    }
 
     // Handle Back Button (Modal/Sheet Close)
     window.addEventListener('popstate', function(event) {
@@ -666,46 +680,50 @@ function setCategory(c) {
 }
 
 function applyFilter() {
-    const searchInput = document.getElementById('searchInput');
-    const q = searchInput ? searchInput.value.toLowerCase() : '';
+    try {
+        const searchInput = document.getElementById('searchInput');
+        const q = searchInput ? searchInput.value.toLowerCase() : '';
 
-    let f = allProducts.filter(p => (p.name.toLowerCase().includes(q)) && (currentCat === 'Semua' || p.category === currentCat));
+        let f = allProducts.filter(p => (p.name.toLowerCase().includes(q)) && (currentCat === 'Semua' || p.category === currentCat));
 
-    // Sort
-    if (currentSort === 'price_low') f.sort((a, b) => a.price - b.price);
-    else if (currentSort === 'price_high') f.sort((a, b) => b.price - a.price);
-    else f.reverse();
+        // Sort
+        if (currentSort === 'price_low') f.sort((a, b) => a.price - b.price);
+        else if (currentSort === 'price_high') f.sort((a, b) => b.price - a.price);
+        else f.reverse();
 
-    const l = document.getElementById('productList');
-    if(!l) return;
+        const l = document.getElementById('productList');
+        if(!l) return;
 
-    l.innerHTML = '';
+        l.innerHTML = '';
 
-    if (f.length === 0) {
-        if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'block';
-    } else {
-        if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'none';
-        f.forEach(p => {
-            const isSoldOut = p.stock < 1;
-            const btnText = isSoldOut ? 'HABIS' : 'BELI';
-            const priceDisp = p.price === 0 ? 'GRATIS' : 'Rp ' + p.price.toLocaleString();
-            const badge = !isSoldOut && p.stock < 5 ? `<div class="badge-discount">SISA ${p.stock}</div>` : '';
+        if (f.length === 0) {
+            if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'block';
+        } else {
+            if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'none';
+            f.forEach(p => {
+                const isSoldOut = p.stock < 1;
+                const btnText = isSoldOut ? 'HABIS' : 'BELI';
+                const priceDisp = p.price === 0 ? 'GRATIS' : 'Rp ' + p.price.toLocaleString();
+                const badge = !isSoldOut && p.stock < 5 ? `<div class="badge-discount">SISA ${p.stock}</div>` : '';
 
-            l.innerHTML += `
-            <div class="card" onclick="openBuy('${p.code}')">
-                <div class="prod-img-container">
-                    <img src="${p.img || FAVICON_URL}" class="prod-img">
-                    ${badge}
-                </div>
-                <div class="card-content">
-                    <h4>${p.name}</h4>
-                    <div class="price-row">
-                        <div class="price">${priceDisp}</div>
-                        <div class="sold-count">${isSoldOut ? 'Habis' : 'Ready'}</div>
+                l.innerHTML += `
+                <div class="card" onclick="openBuy('${p.code}')">
+                    <div class="prod-img-container">
+                        <img src="${p.img || FAVICON_URL}" class="prod-img">
+                        ${badge}
                     </div>
-                </div>
-            </div>`;
-        });
+                    <div class="card-content">
+                        <h4>${p.name}</h4>
+                        <div class="price-row">
+                            <div class="price">${priceDisp}</div>
+                            <div class="sold-count">${isSoldOut ? 'Habis' : 'Ready'}</div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        }
+    } catch (e) {
+        console.error("Apply Filter Error:", e);
     }
 }
 
@@ -1281,32 +1299,19 @@ function setSort(t) {
 async function loadProducts() {
     try {
         const r = await fetch('/api/products');
-        if (!r.ok) throw new Error("Server Error");
-
         const d = await r.json();
-        if(d.error) throw new Error(d.message || "Gagal memuat data");
-
-        if(d.products && Array.isArray(d.products)) {
-            allProducts = d.products;
-            applyFilter();
-        } else {
-            // Safe fallback if JSON is valid but structure is wrong
-            allProducts = [];
-            applyFilter();
-        }
+        allProducts = d.products;
+        applyFilter();
         if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
     } catch (e) {
         console.error("Load Products Error:", e);
+        // Tetap tampilkan error di konsol, tapi jangan crash UI total
         const l = document.getElementById('loading');
         if(l) {
-            l.className = ''; // Remove loader spinner class
+            l.className = '';
             l.style.textAlign = 'center';
             l.style.color = 'var(--danger)';
-            l.innerHTML = `
-                <div style="margin-bottom:10px;">${ICONS.close}</div>
-                <div>Gagal memuat data.</div>
-                <button class="btn-primary" style="margin-top:10px; width:auto; padding:8px 20px;" onclick="location.reload()">Coba Lagi</button>
-            `;
+            l.innerHTML = `<div style="margin-bottom:10px;">${ICONS.close}</div><div>Gagal memuat data.</div><button class="btn-primary" style="margin-top:10px; width:auto; padding:8px 20px;" onclick="location.reload()">Coba Lagi</button>`;
         }
     }
 }
