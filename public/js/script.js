@@ -1,20 +1,11 @@
-/*
-* ======================================================================================
-*   DIGITAL PREMIUM STORE - MAIN JAVASCRIPT
-* ======================================================================================
-*   Note: Global variables (ICONS, BANNERS, CATEGORIES, etc.) are injected
-*   by the server in template.html before this script is loaded.
-*/
-
-// --- GLOBAL VARIABLES ---
-let allProducts = [],
-    currentCode = '',
-    currentOrderId = '',
-    currentUser = '',
-    currentSort = 'newest',
-    currentCat = 'Semua',
-    appliedVoucher = null;
-
+// Variables
+let allProducts = [];
+let currentCode = '';
+let currentOrderId = '';
+let currentUser = '';
+let currentSort = 'newest';
+let currentCat = 'Semua';
+let appliedVoucher = null;
 let activeStockCode = '';
 let statsPage = 1;
 let bannerInterval;
@@ -22,33 +13,40 @@ let cart = [];
 let tempRegImg = '';
 let captchaVerified = false;
 
-// --- INITIALIZATION ---
+// Init
 async function init() {
     checkSession();
     loadCart();
     checkAdminSession();
-    // await loadProducts(); // Don't load everywhere, specific page will call it
+    await loadProducts(); // Fetch awal produk
+    initBannerSlider();
     updateCartCount();
 
-    // Handle Back Button (Modal/Sheet Close)
+    // CHECK URL ROUTING
+    const path = window.location.pathname;
+    if (path.startsWith('/p/')) {
+        const code = path.split('/')[2];
+        if (code) {
+            const checkProd = setInterval(() => {
+                if (allProducts.length > 0) {
+                    clearInterval(checkProd);
+                    const p = allProducts.find(x => x.code === code);
+                    if (p) openBuy(code);
+                }
+            }, 100);
+        }
+    }
     window.addEventListener('popstate', function(event) {
-        if (event.state && event.state.modal) {
-            // handled by history back logic if needed
-        } else {
-            const actives = document.querySelectorAll('.modal.active, .bottom-sheet.active');
-            if (actives.length > 0) {
-                actives.forEach(el => {
-                    if (el.id !== 'authModal') el.classList.remove('active');
-                });
-            }
+        const actives = document.querySelectorAll('.modal.active, .fs-modal.active, .bottom-sheet.active');
+        if (actives.length > 0) {
+            actives.forEach(el => {
+                if (el.id !== 'authModal') el.classList.remove('active');
+            });
         }
     });
 }
 
-// ==========================================
-//   AUTH SYSTEM (LOGIN/REGISTER)
-// ==========================================
-
+// --- AUTH SYSTEM (LOGIN/REGISTER) ---
 function checkSession() {
     const session = localStorage.getItem('user_session');
     if (!session) {
@@ -70,7 +68,6 @@ function switchAuth(type) {
     captchaVerified = false;
     resetCaptchaUI();
     document.querySelectorAll('.auth-tab').forEach(e => e.classList.remove('active'));
-
     if (type === 'login') {
         document.getElementById('tabLogin').classList.add('active');
         document.getElementById('formLogin').style.display = 'block';
@@ -118,72 +115,55 @@ function handleRegImg(input) {
             c.height = i.height * s;
             ctx.drawImage(i, 0, 0, c.width, c.height);
             tempRegImg = c.toDataURL('image/jpeg', 0.7);
-
-            const label = document.getElementById('regImgLabel');
-            label.innerText = "Foto Terpilih ✓";
-            label.style.color = "var(--success)";
-            label.style.borderColor = "var(--success)";
+            document.getElementById('regImgLabel').innerText = "Foto Terpilih ✓";
+            document.getElementById('regImgLabel').style.color = "var(--success)";
+            document.getElementById('regImgLabel').style.borderColor = "var(--success)";
         };
         i.src = r.result;
     };
     r.readAsDataURL(f);
 }
 
-async function registerUser() {
+function registerUser() {
     if (!captchaVerified) return toast("Silakan verifikasi captcha", true);
     const u = document.getElementById('regUser').value.trim();
     const p = document.getElementById('regPass').value.trim();
 
     if (!u || !p) return toast("Isi Username & Password", true);
+    if (localStorage.getItem('user_db_' + u)) return toast("Username sudah ada", true);
 
-    try {
-        const r = await fetch('/api/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: u, password: p })
-        });
-        const d = await r.json();
+    const userData = {
+        username: u,
+        password: p,
+        image: tempRegImg,
+        joined: new Date().toISOString()
+    };
 
-        if (d.success) {
-            toast("Registrasi Berhasil! Silakan Login.");
-            switchAuth('login');
-        } else {
-            toast(d.message || "Gagal Daftar", true);
-        }
-    } catch(e) {
-        toast("Error Koneksi", true);
-    }
+    localStorage.setItem('user_db_' + u, JSON.stringify(userData));
+    localStorage.setItem('user_session', u);
+
+    toast("Registrasi Berhasil!");
+    currentUser = u;
+    updateProfileUI(userData);
+    document.getElementById('authModal').classList.remove('active');
 }
 
-async function loginUser() {
+function loginUser() {
     if (!captchaVerified) return toast("Silakan verifikasi captcha", true);
     const u = document.getElementById('loginUser').value.trim();
     const p = document.getElementById('loginPass').value.trim();
 
-    try {
-        const r = await fetch('/api/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username: u, password: p })
-        });
-        const d = await r.json();
+    const stored = localStorage.getItem('user_db_' + u);
+    if (!stored) return toast("User tidak ditemukan", true);
 
-        if (d.success) {
-            localStorage.setItem('user_session', d.user.username);
-            // Simpan profil lokal agar UI tidak blank
-            const userData = { username: d.user.username, image: '' };
-            localStorage.setItem('user_db_' + d.user.username, JSON.stringify(userData));
+    const userData = JSON.parse(stored);
+    if (userData.password !== p) return toast("Password Salah", true);
 
-            toast("Login Berhasil");
-            currentUser = d.user.username;
-            updateProfileUI(userData);
-            document.getElementById('authModal').classList.remove('active');
-        } else {
-            toast(d.message || "Gagal Login", true);
-        }
-    } catch(e) {
-        toast("Error Koneksi", true);
-    }
+    localStorage.setItem('user_session', u);
+    toast("Login Berhasil");
+    currentUser = u;
+    updateProfileUI(userData);
+    document.getElementById('authModal').classList.remove('active');
 }
 
 function logoutUser() {
@@ -204,19 +184,15 @@ function updateProfileUI(user) {
     }
 }
 
-// ==========================================
-//   CORE UI FUNCTIONS
-// ==========================================
-
+// --- CORE FUNCTIONS ---
 function checkAdminSession() {
-    if (localStorage.getItem('adminKey'))
-        document.getElementById('quickAdminBtn').style.display = 'flex';
-    else
-        document.getElementById('quickAdminBtn').style.display = 'none';
+    if (localStorage.getItem('adminKey')) document.getElementById('quickAdminBtn').style.display = 'flex';
+    else document.getElementById('quickAdminBtn').style.display = 'none';
 }
 
+// REPLACED LOADCONFIG TO USE INJECTED VARIABLES
 async function loadConfig() {
-    // Config injected by server (BANNERS, CATEGORIES), just render UI
+    // Config sudah di-inject oleh server, kita hanya perlu renderCategories
     renderCategories();
 }
 
@@ -224,10 +200,11 @@ function openContact() {
     window.open(CONTACT_URL, '_blank');
 }
 
-// --- MODAL & SHEET SYSTEM ---
-
+// --- MODAL SYSTEM ---
 function openModal(id) {
-    // window.history.pushState({ modal: id }, ''); // Optional for simple modals
+    window.history.pushState({
+        modal: id
+    }, '');
     document.getElementById(id).classList.add('active');
 }
 
@@ -236,7 +213,9 @@ function closeModal(id) {
 }
 
 function openSheet() {
-    window.history.pushState({ sheet: 'sort' }, '');
+    window.history.pushState({
+        sheet: 'sort'
+    }, '');
     document.getElementById('sheetOverlay').classList.add('active');
     document.getElementById('sortSheet').classList.add('active');
 }
@@ -246,10 +225,7 @@ function closeSheet() {
     document.getElementById('sortSheet').classList.remove('active');
 }
 
-// ==========================================
-//   CART SYSTEM
-// ==========================================
-
+// --- CART SYSTEM ---
 function loadCart() {
     const c = localStorage.getItem('myCart');
     if (c) cart = JSON.parse(c);
@@ -295,44 +271,34 @@ function updateCartCount() {
     }
 }
 
-// --- PAGE SPECIFIC LOGIC ---
-
-// CART PAGE
-function openCartPage() {
+function openCart() {
     const l = document.getElementById('cartList');
-    if(!l) return;
     l.innerHTML = '';
-
     if (cart.length === 0) {
-        l.innerHTML = `
-            <div style="text-align:center; padding:50px; color:var(--text-muted); display:flex; flex-direction:column; align-items:center; gap:10px;">
-                ${ICONS.cart}
-                <span>Keranjang kosong</span>
-                <a href="/" class="btn-primary" style="width:auto; margin-top:10px;">Belanja Sekarang</a>
-            </div>`;
-        if(document.getElementById('cartTotal')) document.getElementById('cartTotal').innerText = 'Rp 0';
+        l.innerHTML = '<div style="text-align:center; padding:50px; color:var(--text-muted); display:flex; flex-direction:column; align-items:center; gap:10px;">' + ICONS.cart + '<span>Keranjang kosong</span></div>';
+        document.getElementById('cartTotal').innerText = 'Rp 0';
     } else {
         cart.forEach((item, idx) => {
             const checkClass = item.selected ? 'active' : '';
-            l.innerHTML += `
-                <div class="cart-item">
-                    <div class="cart-check ${checkClass}" onclick="toggleCartSelect(${idx})"></div>
-                    <img src="${item.img || FAVICON_URL}" class="cart-thumb">
-                    <div class="cart-info">
-                        <div class="cart-title">${item.name}</div>
-                        <div class="cart-price">Rp ${item.price.toLocaleString()}</div>
-                        <div style="font-size:0.8rem; margin-top:4px; color:var(--text-muted);">Jumlah: ${item.qty}</div>
-                    </div>
-                    <div class="cart-del" onclick="removeFromCart(${idx})">${ICONS.trash}</div>
-                </div>`;
+            l.innerHTML += `<div class="cart-item">
+                        <div class="cart-check ${checkClass}" onclick="toggleCartSelect(${idx})"></div>
+                        <img src="${item.img||FAVICON_URL}" class="cart-thumb">
+                        <div class="cart-info">
+                            <div class="cart-title">${item.name}</div>
+                            <div class="cart-price">Rp ${item.price.toLocaleString()}</div>
+                            <div style="font-size:0.8rem; margin-top:4px; color:var(--text-muted);">Jumlah: ${item.qty}</div>
+                        </div>
+                        <div class="cart-del" onclick="removeFromCart(${idx})">${ICONS.trash}</div>
+                    </div>`;
         });
         updateCheckoutBtn();
     }
+    openModal('cartPage');
 }
 
 function toggleCartSelect(idx) {
     cart[idx].selected = !cart[idx].selected;
-    openCartPage(); // Re-render page
+    openCart(); // Re-render to show checkbox state
 }
 
 function updateCheckoutBtn() {
@@ -340,13 +306,13 @@ function updateCheckoutBtn() {
     cart.forEach(item => {
         if (item.selected) total += (item.price * item.qty);
     });
-    if(document.getElementById('cartTotal')) document.getElementById('cartTotal').innerText = 'Rp ' + total.toLocaleString();
+    document.getElementById('cartTotal').innerText = 'Rp ' + total.toLocaleString();
 }
 
 function removeFromCart(idx) {
     cart.splice(idx, 1);
     saveCart();
-    openCartPage();
+    openCart();
 }
 
 function checkoutCart() {
@@ -361,69 +327,41 @@ function checkoutCart() {
     const item = selectedItems[0];
     currentCode = item.code;
 
-    // Reuse logic for single buy
-    const html = `
-        <div>
-            <h3 style="margin-top:0;">${item.name}</h3>
+    // Re-use logic for single buy
+    const html = `<div><h3 style="margin-top:0;">${item.name}</h3>
             <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin:20px 0;">
                 <span style="font-size:1.1rem; font-weight:bold;">Jumlah: ${item.qty}</span>
             </div>
-            <div style="font-weight:800; font-size:1.2rem; margin-bottom:15px; color:var(--primary);" id="mTotal">
-                Total: Rp ${(item.price * item.qty).toLocaleString()}
-            </div>
+            <div style="font-weight:800; font-size:1.2rem; margin-bottom:15px; color:var(--primary);" id="mTotal">Total: Rp ${(item.price * item.qty).toLocaleString()}</div>
             <input type="hidden" id="mQty" value="${item.qty}">
-            <button class="btn-primary" onclick="processBuy()">Lanjut Bayar</button>
-        </div>`;
+            <button class="btn-primary" onclick="processBuy()">Lanjut Bayar</button></div>`;
 
     document.getElementById('trxBody').innerHTML = html;
     openModal('trxModal');
 }
 
-// ==========================================
-//   PRODUCT DETAIL & BUYING FLOW
-// ==========================================
-
+// --- PRODUCT DETAIL PAGE (PDP) ---
 function openBuy(code) {
-    window.location.href = '/p/' + code;
+    currentCode = code;
+    const p = allProducts.find(x => x.code === code);
+    if (!p) return;
+
+    // Populate PDP
+    document.getElementById('pdpImage').src = p.img || FAVICON_URL;
+    document.getElementById('pdpPrice').innerText = p.price === 0 ? 'GRATIS' : 'Rp ' + p.price.toLocaleString();
+    document.getElementById('pdpName').innerText = p.name;
+    document.getElementById('pdpStock').innerText = 'Stok: ' + p.stock;
+    document.getElementById('pdpDesc').innerText = p.desc || 'Tidak ada deskripsi.';
+
+    openModal('productDetailPage');
 }
 
-function addToCartCurrent(code) {
-    // If not provided (from PDP page variable)
-    if(!code) code = currentCode;
+function closeProductDetail() {
+    closeModal('productDetailPage');
+}
 
-    // Fetch product info if allProducts empty (direct access)
-    // For now simple check
-    let p = allProducts.find(x => x.code === code);
-
-    // If on PDP, we might not have allProducts loaded, but we have DOM
-    if(!p && document.getElementById('pdpName')) {
-        // Construct minimal P
-        const priceStr = document.getElementById('pdpPrice').innerText.replace('Rp ', '').replace(/,/g, '').replace('GRATIS', '0');
-        p = {
-            code: code,
-            name: document.getElementById('pdpName').innerText,
-            price: parseInt(priceStr),
-            img: document.getElementById('pdpImage').src
-        };
-    }
-
-    if (!p) return; // Should fetch from API if really needed
-
-    const exist = cart.find(x => x.code === code);
-    if (exist) {
-        exist.qty++;
-    } else {
-        cart.push({
-            code: code,
-            qty: 1,
-            price: p.price,
-            name: p.name,
-            img: p.img,
-            selected: false
-        });
-    }
-    saveCart();
-    toast("Masuk Keranjang");
+function addToCartCurrent() {
+    addToCart(currentCode);
 }
 
 function shareCurrentProduct() {
@@ -440,52 +378,32 @@ function shareCurrentProduct() {
     }
 }
 
-function buyCurrent(code) {
-    if(code) currentCode = code;
-
-    let p = allProducts.find(x => x.code === currentCode);
-
-    // Fallback for PDP direct load
-    if(!p && document.getElementById('pdpName')) {
-        const priceStr = document.getElementById('pdpPrice').innerText.replace('Rp ', '').replace(/,/g, '').replace('GRATIS', '0');
-        const stockStr = document.getElementById('pdpStock').innerText.replace('Stok: ', '');
-        p = {
-            code: currentCode,
-            name: document.getElementById('pdpName').innerText,
-            price: parseInt(priceStr),
-            stock: parseInt(stockStr) || 0
-        };
-    }
-
+function buyCurrent() {
+    // Logic Beli Langsung (Open Modal Qty)
+    const p = allProducts.find(x => x.code === currentCode);
     if (!p || p.stock < 1) return toast("Stok Habis");
 
-    const html = `
-        <div>
-            <h3 style="margin-top:0;">${p.name}</h3>
+    const html = `<div><h3 style="margin-top:0;">${p.name}</h3>
             <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin:20px 0;">
-                <button onclick="changeQty(-1, ${p.price}, ${p.stock})" style="width:35px;height:35px;border-radius:8px;border:1px solid #ddd;background:white;font-weight:bold;">-</button>
+                <button onclick="changeQty(-1)" style="width:35px;height:35px;border-radius:8px;border:1px solid #ddd;background:white;font-weight:bold;">-</button>
                 <input id="mQty" value="1" readonly style="width:50px;text-align:center;font-weight:bold;border:none;font-size:1.1rem;background:transparent;">
-                <button onclick="changeQty(1, ${p.price}, ${p.stock})" style="width:35px;height:35px;border-radius:8px;border:1px solid #ddd;background:white;font-weight:bold;">+</button>
+                <button onclick="changeQty(1)" style="width:35px;height:35px;border-radius:8px;border:1px solid #ddd;background:white;font-weight:bold;">+</button>
             </div>
-            <div style="font-weight:800; font-size:1.2rem; margin-bottom:15px; color:var(--primary);" id="mTotal">
-                ${p.price === 0 ? 'GRATIS' : 'Rp ' + p.price.toLocaleString()}
-            </div>
-            <button class="btn-primary" onclick="processBuy()">Lanjut Bayar</button>
-        </div>`;
+            <div style="font-weight:800; font-size:1.2rem; margin-bottom:15px; color:var(--primary);" id="mTotal">${p.price===0?'GRATIS':'Rp '+p.price.toLocaleString()}</div>
+            <button class="btn-primary" onclick="processBuy()">Lanjut Bayar</button></div>`;
 
     document.getElementById('trxBody').innerHTML = html;
     openModal('trxModal');
 }
 
-function changeQty(d, price, maxStock) {
+function changeQty(d) {
     const e = document.getElementById('mQty');
     let v = parseInt(e.value) + d;
-
+    const p = allProducts.find(x => x.code === currentCode);
     if (v < 1) v = 1;
-    if (v > maxStock) v = maxStock;
-
+    if (v > p.stock) v = p.stock;
     e.value = v;
-    document.getElementById('mTotal').innerText = price === 0 ? 'GRATIS' : 'Rp ' + (price * v).toLocaleString();
+    document.getElementById('mTotal').innerText = p.price === 0 ? 'GRATIS' : 'Rp ' + (p.price * v).toLocaleString();
 }
 
 async function processBuy() {
@@ -494,8 +412,14 @@ async function processBuy() {
 
     const r = await fetch('/api/buy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: currentCode, qty: q, voucherCode: null })
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            code: currentCode,
+            qty: q,
+            voucherCode: null
+        })
     });
     const d = await r.json();
 
@@ -530,17 +454,7 @@ async function processBuy() {
 
 function showPaymentUI(q, a) {
     const u = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(q)}`;
-    const h = `
-        <div style="text-align:center">
-            <h3 style="margin-top:0;">Scan QRIS</h3>
-            <div style="padding:15px;background:white;border:1px solid #eee;border-radius:12px;display:inline-block;box-shadow:var(--shadow-sm);">
-                <img src="${u}" style="width:200px;display:block;">
-            </div>
-            <h2 style="color:var(--primary);margin:10px 0 5px;">Rp ${a.toLocaleString()}</h2>
-            <p style="font-size:0.8rem;color:var(--text-muted);">ID: <span style="font-family:monospace">${currentOrderId}</span></p>
-            <button class="btn-primary" onclick="checkStatus()">Cek Status Pembayaran</button>
-            <div style="font-size:0.75rem; color:var(--text-muted); margin-top:10px;">Otomatis cek status saat diklik</div>
-        </div>`;
+    const h = `<div style="text-align:center"><h3 style="margin-top:0;">Scan QRIS</h3><div style="padding:15px;background:white;border:1px solid #eee;border-radius:12px;display:inline-block;box-shadow:var(--shadow-sm);"><img src="${u}" style="width:200px;display:block;"></div><h2 style="color:var(--primary);margin:10px 0 5px;">Rp ${a.toLocaleString()}</h2><p style="font-size:0.8rem;color:var(--text-muted);">ID: <span style="font-family:monospace">${currentOrderId}</span></p><button class="btn-primary" onclick="checkStatus()">Cek Status Pembayaran</button><div style="font-size:0.75rem; color:var(--text-muted); margin-top:10px;">Otomatis cek status saat diklik</div></div>`;
     document.getElementById('trxBody').innerHTML = h;
 }
 
@@ -550,8 +464,12 @@ async function checkStatus() {
     if (d.status === 'PAID') {
         const c = await fetch('/api/claim', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ oid: currentOrderId })
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                oid: currentOrderId
+            })
         });
         const res = await c.json();
         if (res.success) {
@@ -562,42 +480,25 @@ async function checkStatus() {
 }
 
 function showSuccess(accs, isModal = false) {
-    let h = `
-        <div style="text-align:center">
-            <div style="font-size:50px;color:var(--success);margin-bottom:10px;">${ICONS.check}</div>
-            <h3 style="margin:0 0 10px;">Berhasil!</h3>
-            <p style="color:var(--text-muted); font-size:0.9rem;">Berikut produk Anda:</p>
-            <div class="acc-list-container" style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:left; max-height:250px; overflow-y:auto;">`;
-
+    let h = `<div style="text-align:center"><div style="font-size:50px;color:var(--success);margin-bottom:10px;">${ICONS.check}</div><h3 style="margin:0 0 10px;">Berhasil!</h3><p style="color:var(--text-muted); font-size:0.9rem;">Berikut produk Anda:</p><div class="acc-list-container" style="background:#f8fafc; padding:15px; border-radius:12px; border:1px solid #e2e8f0; text-align:left; max-height:250px; overflow-y:auto;">`;
     accs.forEach(a => {
-        h += `
-            <div style="margin-bottom:10px; background:white; padding:10px; border-radius:8px; border:1px dashed #cbd5e1; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-family:monospace; font-weight:600; color:#334155; overflow-wrap:anywhere;">${a}</span>
-                <div style="cursor:pointer; color:var(--primary);" onclick="copyText('${a}')">${ICONS.copy}</div>
-            </div>`;
+        h += `<div style="margin-bottom:10px; background:white; padding:10px; border-radius:8px; border:1px dashed #cbd5e1; display:flex; justify-content:space-between; align-items:center;"><span style="font-family:monospace; font-weight:600; color:#334155; overflow-wrap:anywhere;">${a}</span><div style="cursor:pointer; color:var(--primary);" onclick="copyText('${a}')">${ICONS.copy}</div></div>`;
     });
-
     h += '</div></div>';
     document.getElementById('trxBody').innerHTML = h;
     if (!isModal) openModal('trxModal');
 }
 
-// ==========================================
-//   BANNER & SLIDER
-// ==========================================
-
+// --- BANNER & UI UTILS ---
 function initBannerSlider() {
     const c = document.getElementById('bannerCarousel');
     if (BANNERS.length === 0) return;
-
     let h = '<div class="banner-slider" id="bannerSlider">';
     let d = '<div class="banner-dots">';
-
     BANNERS.forEach((b, i) => {
         h += `<div class="banner-slide"><img src="${b}" class="banner-img"></div>`;
-        d += `<div class="banner-dot ${i === 0 ? 'active' : ''}"></div>`;
+        d += `<div class="banner-dot ${i===0?'active':''}"></div>`;
     });
-
     c.innerHTML = h + '</div>' + d + '</div>';
 
     // Dots logic
@@ -614,24 +515,23 @@ function initBannerSlider() {
     if (slider) {
         setInterval(() => {
             const w = slider.offsetWidth;
-            if (slider.scrollLeft >= slider.scrollWidth - w - 10)
-                slider.scrollTo({ left: 0, behavior: 'smooth' });
-            else
-                slider.scrollBy({ left: w, behavior: 'smooth' });
+            if (slider.scrollLeft >= slider.scrollWidth - w - 10) slider.scrollTo({
+                left: 0,
+                behavior: 'smooth'
+            });
+            else slider.scrollBy({
+                left: w,
+                behavior: 'smooth'
+            });
         }, 4000);
     }
 }
 
-// ==========================================
-//   CATEGORY & SEARCH
-// ==========================================
-
 function renderCategories() {
     const l = document.getElementById('catList');
-    if(!l) return;
     l.innerHTML = '';
     CATEGORIES.forEach(c => {
-        l.innerHTML += `<div class="cat-pill ${c === currentCat ? 'active' : ''}" onclick="setCategory('${c}')">${c}</div>`;
+        l.innerHTML += `<div class="cat-pill ${c===currentCat?'active':''}" onclick="setCategory('${c}')">${c}</div>`;
     });
 }
 
@@ -642,9 +542,7 @@ function setCategory(c) {
 }
 
 function applyFilter() {
-    const searchInput = document.getElementById('searchInput');
-    const q = searchInput ? searchInput.value.toLowerCase() : '';
-
+    const q = document.getElementById('searchInput').value.toLowerCase();
     let f = allProducts.filter(p => (p.name.toLowerCase().includes(q)) && (currentCat === 'Semua' || p.category === currentCat));
 
     // Sort
@@ -653,14 +551,10 @@ function applyFilter() {
     else f.reverse();
 
     const l = document.getElementById('productList');
-    if(!l) return;
-
     l.innerHTML = '';
-
-    if (f.length === 0) {
-        if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'block';
-    } else {
-        if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'none';
+    if (f.length === 0) document.getElementById('noResults').style.display = 'block';
+    else {
+        document.getElementById('noResults').style.display = 'none';
         f.forEach(p => {
             const isSoldOut = p.stock < 1;
             const btnText = isSoldOut ? 'HABIS' : 'BELI';
@@ -668,19 +562,19 @@ function applyFilter() {
             const badge = !isSoldOut && p.stock < 5 ? `<div class="badge-discount">SISA ${p.stock}</div>` : '';
 
             l.innerHTML += `
-            <div class="card" onclick="openBuy('${p.code}')">
-                <div class="prod-img-container">
-                    <img src="${p.img || FAVICON_URL}" class="prod-img">
-                    ${badge}
-                </div>
-                <div class="card-content">
-                    <h4>${p.name}</h4>
-                    <div class="price-row">
-                        <div class="price">${priceDisp}</div>
-                        <div class="sold-count">${isSoldOut ? 'Habis' : 'Ready'}</div>
-                    </div>
-                </div>
-            </div>`;
+                    <div class="card" onclick="openBuy('${p.code}')">
+                        <div class="prod-img-container">
+                            <img src="${p.img||FAVICON_URL}" class="prod-img">
+                            ${badge}
+                        </div>
+                        <div class="card-content">
+                            <h4>${p.name}</h4>
+                            <div class="price-row">
+                                <div class="price">${priceDisp}</div>
+                                <div class="sold-count">${isSoldOut?'Habis':'Ready'}</div>
+                            </div>
+                        </div>
+                    </div>`;
         });
     }
 }
@@ -688,15 +582,12 @@ function applyFilter() {
 function handleSearch(e) {
     if ((e.key === 'Enter' || e.keyCode === 13) && e.target.value.toLowerCase() === 'minkey') {
         openModal('loginModal');
-        e.target.value = '';
+        e.target.value = ''
     }
     applyFilter();
 }
 
-// ==========================================
-//   ADMIN PANEL LOGIC
-// ==========================================
-
+// --- ADMIN FUNCTIONS ---
 function openAdminMenu() {
     openModal('adminMenuPage');
     switchAdminTab('prod');
@@ -710,7 +601,6 @@ function closeAdminMenu() {
 function switchAdminTab(t) {
     document.querySelectorAll('.sidebar-item').forEach(e => e.classList.remove('active'));
     document.getElementById('sb' + t.charAt(0).toUpperCase() + t.slice(1)).classList.add('active');
-
     document.querySelectorAll('.admin-content > div').forEach(e => e.style.display = 'none');
     document.getElementById('adminTab' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = 'block';
 
@@ -733,13 +623,10 @@ function toggleAccordion(id) {
 }
 
 // --- ADMIN HELPERS ---
-
 function renderAdminCats() {
     const d = document.getElementById('confCatList');
     d.innerHTML = '';
-    CATEGORIES.forEach((c, i) => {
-        d.innerHTML += `<div class="tag">${c} <span class="tag-del" onclick="admRemCat(${i})">${ICONS.trash}</span></div>`;
-    });
+    CATEGORIES.forEach((c, i) => d.innerHTML += `<div class="tag">${c} <span class="tag-del" onclick="admRemCat(${i})">${ICONS.trash}</span></div>`);
     updateCategorySelects();
 }
 
@@ -813,7 +700,6 @@ function renderAdminBanners() {
     const c = document.getElementById('bannerListContainer');
     c.innerHTML = '';
     if (!BANNERS || BANNERS.length === 0) return;
-
     BANNERS.forEach((url, i) => {
         // Logic for Move Buttons Visibility
         const isFirst = (i === 0);
@@ -824,40 +710,40 @@ function renderAdminBanners() {
         let moveDownBtn = isLast ? '' : `<div class="btn-icon-sm" onclick="admMoveBanner(${i}, 1)">${ICONS.arrowDown}</div>`;
 
         c.innerHTML += `
-            <div class="banner-item">
-                <div class="banner-head">
-                    <span class="banner-label">Banner #${i+1}</span>
-                </div>
-                <input class="input-field banner-url-input" value="${url}" placeholder="URL Gambar..." oninput="previewBanners()" style="margin-bottom:0">
-                <div class="banner-actions">
-                    ${moveUpBtn}
-                    ${moveDownBtn}
-                    <div class="btn-icon-sm btn-del-sm" onclick="admRemoveBanner(${i})">${ICONS.trash}</div>
-                </div>
-            </div>
-        `;
+                    <div class="banner-item">
+                        <div class="banner-head">
+                            <span class="banner-label">Banner #${i+1}</span>
+                        </div>
+                        <input class="input-field banner-url-input" value="${url}" placeholder="URL Gambar..." oninput="previewBanners()" style="margin-bottom:0">
+                        <div class="banner-actions">
+                            ${moveUpBtn}
+                            ${moveDownBtn}
+                            <div class="btn-icon-sm btn-del-sm" onclick="admRemoveBanner(${i})">${ICONS.trash}</div>
+                        </div>
+                    </div>
+                `;
     });
 }
 
 function admMoveBanner(index, direction) {
-    // 1. Get latest data from inputs first
+    // 1. Ambil data terbaru dari input dulu (PENTING)
     const inputs = document.querySelectorAll('.banner-url-input');
     BANNERS = Array.from(inputs).map(i => i.value);
 
-    // 2. Perform Swap
+    // 2. Lakukan Swap
     if (direction === -1 && index > 0) {
         [BANNERS[index], BANNERS[index - 1]] = [BANNERS[index - 1], BANNERS[index]];
     } else if (direction === 1 && index < BANNERS.length - 1) {
         [BANNERS[index], BANNERS[index + 1]] = [BANNERS[index + 1], BANNERS[index]];
     }
 
-    // 3. Re-render
+    // 3. Render ulang
     renderAdminBanners();
     previewBanners();
 }
 
 function admAddBanner() {
-    // Get data first
+    // Ambil data dulu biar gak hilang yg diketik
     const inputs = document.querySelectorAll('.banner-url-input');
     if (inputs.length > 0) BANNERS = Array.from(inputs).map(i => i.value);
 
@@ -867,7 +753,7 @@ function admAddBanner() {
 }
 
 function admRemoveBanner(index) {
-    // Get data first
+    // Ambil data dulu
     const inputs = document.querySelectorAll('.banner-url-input');
     BANNERS = Array.from(inputs).map(i => i.value);
 
@@ -881,9 +767,7 @@ function previewImg(input, imgId) {
     if (input.value) {
         img.src = input.value;
         img.style.display = 'block';
-    } else {
-        img.style.display = 'none';
-    }
+    } else img.style.display = 'none';
 }
 
 function previewBanners() {
@@ -915,7 +799,9 @@ async function loadAdminStats(page) {
 
     try {
         const r = await fetch('/api/admin/stats?page=' + page, {
-            headers: { 'Admin-Key': localStorage.getItem('adminKey') }
+            headers: {
+                'Admin-Key': localStorage.getItem('adminKey')
+            }
         });
         const d = await r.json();
         if (d.success) {
@@ -929,14 +815,10 @@ async function loadAdminStats(page) {
                 document.getElementById('btnNextPage').disabled = true;
             } else {
                 d.history.forEach(s => {
-                    html += `
-                        <div class="tx-item">
-                            <div class="tx-left">
-                                <span class="tx-name">${s.name}</span>
-                                <span class="tx-date">${new Date(s.date).toLocaleString()}</span>
-                            </div>
-                            <div class="tx-right">Rp ${(s.price || 0).toLocaleString()}</div>
-                        </div>`;
+                    html += `<div class="tx-item">
+                                <div class="tx-left"><span class="tx-name">${s.name}</span><span class="tx-date">${new Date(s.date).toLocaleString()}</span></div>
+                                <div class="tx-right">Rp ${(s.price||0).toLocaleString()}</div>
+                            </div>`;
                 });
                 // Disable NEXT if less than 7 items
                 document.getElementById('btnNextPage').disabled = (d.history.length < 7);
@@ -1002,10 +884,7 @@ async function admSaveConfig() {
     }
 }
 
-// ==========================================
-//   USER PROFILE & SETTINGS
-// ==========================================
-
+// --- USER FUNCTIONS ---
 function openInputName() {
     openModal('inputNameModal');
 }
@@ -1015,32 +894,35 @@ function closeUserMenu() {
 }
 
 function openUserMenu() {
-    // 1. Get history
+    // 1. Ambil data riwayat transaksi
     const h = getHistory();
     let spend = 0;
     let assets = 0;
 
-    // 2. Calculate stats
+    // 2. Hitung total uang keluar & jumlah aset
     h.forEach(i => {
         if (i.status === 'PAID') {
-            spend += (i.price || 0);
+            spend += (i.price || 0); // Tambah harga ke total belanja
 
+            // Hitung jumlah akun/aset
             if (Array.isArray(i.content)) assets += i.content.length;
             else assets++;
         }
     });
 
-    // 3. Render
+    // 3. Tampilkan angka hasil hitungan ke layar (HTML yang tadi kita buat)
     const elSpend = document.getElementById('uStatSpend');
     const elAssets = document.getElementById('uStatAssets');
 
+    // Cek dulu elemennya ada atau tidak untuk menghindari error
     if (elSpend) elSpend.innerText = 'Rp ' + spend.toLocaleString();
     if (elAssets) elAssets.innerText = assets;
 
-    // 4. Open Menu
+    // 4. Baru buka menu profilnya
     openModal('userMenuPage');
 }
 
+// Fungsi Baru: Untuk memproses ganti foto profil
 function changeProfilePic(input) {
     const f = input.files[0];
     if (!f) return;
@@ -1050,21 +932,21 @@ function changeProfilePic(input) {
         i.onload = function() {
             const c = document.createElement('canvas');
             const ctx = c.getContext('2d');
-            // Resize for lightweight storage
+            // Kecilkan gambar biar ringan disimpan di browser
             const s = 100 / i.width;
             c.width = 100;
             c.height = i.height * s;
             ctx.drawImage(i, 0, 0, c.width, c.height);
             const newData = c.toDataURL('image/jpeg', 0.7);
 
-            // Save to LocalStorage
+            // Simpan data gambar ke LocalStorage browser
             const session = localStorage.getItem('user_session');
             if (session) {
                 let userDb = JSON.parse(localStorage.getItem('user_db_' + session));
                 userDb.image = newData;
                 localStorage.setItem('user_db_' + session, JSON.stringify(userDb));
 
-                // Update UI
+                // Perbarui foto di layar
                 updateProfileUI(userDb);
                 toast("Foto Profil Diperbarui");
             }
@@ -1075,41 +957,51 @@ function changeProfilePic(input) {
 }
 
 function editProfileName() {
+    // 1. Minta input nama baru
     const currentSession = localStorage.getItem('user_session');
     const oldName = currentSession;
     let newName = prompt("Masukkan Nama Baru:", oldName);
 
-    if (!newName) return;
+    // 2. Validasi input
+    if (!newName) return; // Jika batal/kosong
     newName = newName.trim();
-    if (newName === oldName) return;
+    if (newName === oldName) return; // Jika nama sama saja
     if (newName.length < 3) return toast("Nama terlalu pendek (min 3 huruf)", true);
 
+    // 3. Cek apakah nama sudah dipakai orang lain di browser ini
     if (localStorage.getItem('user_db_' + newName)) {
         return toast("Nama sudah digunakan user lain!", true);
     }
 
+    // 4. Proses Ganti Nama (Migrasi Data)
     try {
+        // Ambil data user lama
         const userData = JSON.parse(localStorage.getItem('user_db_' + oldName));
+
+        // Update properti username di dalam data
         userData.username = newName;
 
+        // Simpan ke kunci baru (user_db_NAMABARU)
         localStorage.setItem('user_db_' + newName, JSON.stringify(userData));
+
+        // Update session aktif
         localStorage.setItem('user_session', newName);
         currentUser = newName;
 
+        // Hapus data kunci lama agar bersih
         localStorage.removeItem('user_db_' + oldName);
 
+        // Update Tampilan
         updateProfileUI(userData);
         toast("Nama berhasil diubah!");
+
     } catch (e) {
         console.error(e);
         toast("Gagal mengubah nama", true);
     }
 }
 
-// ==========================================
-//   HISTORY & ASSETS
-// ==========================================
-
+// --- HISTORY & ASSETS ---
 function getHistory() {
     return JSON.parse(localStorage.getItem('myHistory') || '[]');
 }
@@ -1130,39 +1022,29 @@ function updateHistoryStatus(oid, s, c) {
     }
 }
 
-// HISTORY PAGE
-function loadHistoryPage() {
-    filterHist('all');
-}
-
 function filterHist(t) {
     document.querySelectorAll('.cat-pill').forEach(e => e.classList.remove('active'));
-    const tabId = t === 'all' ? 'tabAll' : (t === 'pending' ? 'tabPending' : 'tabPaid');
-    if(document.getElementById(tabId)) document.getElementById(tabId).classList.add('active');
-
+    document.getElementById(t === 'all' ? 'tabAll' : (t === 'pending' ? 'tabPending' : 'tabPaid')).classList.add('active');
     const h = getHistory();
     const f = h.filter(x => (t === 'all') ? true : (t === 'pending' ? x.status === 'PENDING' : x.status === 'PAID'));
     const l = document.getElementById('histList');
-    if(!l) return;
     l.innerHTML = '';
-
-    if (f.length === 0)
-        l.innerHTML = '<div style="text-align:center;color:#888;padding:20px;">Belum ada riwayat</div>';
-
+    if (f.length === 0) l.innerHTML = '<div style="text-align:center;color:#888;padding:20px;">Belum ada riwayat</div>';
     f.forEach(i => {
-        const st = i.status === 'PAID' ?
-            '<span style="color:var(--success);background:#ECFDF5;padding:3px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">BERHASIL</span>' :
-            '<span style="color:var(--danger);background:#FEF2F2;padding:3px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">MENUNGGU</span>';
-
-        l.innerHTML += `
-            <div style="background:white; padding:12px; margin-bottom:10px; border-radius:12px; border:1px solid var(--border); box-shadow:var(--shadow-sm); cursor:pointer;" onclick="showHistoryDetail('${i.oid}')">
+        const st = i.status === 'PAID' ? '<span style="color:var(--success);background:#ECFDF5;padding:3px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">BERHASIL</span>' : '<span style="color:var(--danger);background:#FEF2F2;padding:3px 8px;border-radius:6px;font-size:0.7rem;font-weight:700;">MENUNGGU</span>';
+        l.innerHTML += `<div style="background:white; padding:12px; margin-bottom:10px; border-radius:12px; border:1px solid var(--border); box-shadow:var(--shadow-sm); cursor:pointer;" onclick="showHistoryDetail('${i.oid}')">
                 <div style="font-weight:700; margin-bottom:5px;">${i.name}</div>
                 <div style="font-size:0.75rem; display:flex; justify-content:space-between; align-items:center;">
                     <span style="color:var(--text-muted);">${i.date}</span>
                     ${st}
                 </div>
-            </div>`;
+                </div>`;
     });
+}
+
+function openHistory() {
+    openModal('historyModal');
+    filterHist('all');
 }
 
 function showHistoryDetail(oid) {
@@ -1179,65 +1061,38 @@ function showHistoryDetail(oid) {
     }
 }
 
-// ASSETS PAGE
-function loadAssetsPage() {
+function openAssets() {
     const h = getHistory().filter(x => x.status === 'PAID');
     const l = document.getElementById('myProdList');
-    if(!l) return;
     l.innerHTML = '';
-
-    if (h.length === 0)
-        l.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">' + ICONS.wallet + '<br>Belum ada aset</div>';
-
+    if (h.length === 0) l.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-muted);">' + ICONS.wallet + '<br>Belum ada aset</div>';
     h.forEach(i => {
         let c = '';
-        if (Array.isArray(i.content))
-            i.content.forEach(x => c += `<div class="acc-box" style="background:#F8FAFC;padding:10px;border-radius:8px;border:1px dashed var(--border);margin-top:8px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:monospace;font-weight:600;">${x}</span><div style="cursor:pointer;color:var(--primary);font-size:0.8rem;" onclick="copyText('${x}')">Salin</div></div>`);
-
+        if (Array.isArray(i.content)) i.content.forEach(x => c += `<div class="acc-box" style="background:#F8FAFC;padding:10px;border-radius:8px;border:1px dashed var(--border);margin-top:8px;display:flex;justify-content:space-between;align-items:center;"><span style="font-family:monospace;font-weight:600;">${x}</span><div style="cursor:pointer;color:var(--primary);font-size:0.8rem;" onclick="copyText('${x}')">Salin</div></div>`);
         l.innerHTML += `<div class="asset-card" style="background:white;border-radius:12px;padding:16px;border:1px solid var(--border);margin-bottom:12px;"><strong>${i.name}</strong>${c}</div>`;
     });
+    openModal('myProductsModal');
 }
 
-// PROFILE PAGE
-function loadProfilePage() {
-    const userSession = localStorage.getItem('user_session');
-    if(userSession) {
-        const userData = JSON.parse(localStorage.getItem('user_db_' + userSession));
-        if(userData) updateProfileUI(userData);
-    }
-
-    const h = getHistory();
-    let spend = 0;
-    let assets = 0;
-
-    h.forEach(i => {
-        if (i.status === 'PAID') {
-            spend += (i.price || 0);
-            if (Array.isArray(i.content)) assets += i.content.length;
-            else assets++;
-        }
-    });
-
-    const elSpend = document.getElementById('uStatSpend');
-    const elAssets = document.getElementById('uStatAssets');
-
-    if (elSpend) elSpend.innerText = 'Rp ' + spend.toLocaleString();
-    if (elAssets) elAssets.innerText = assets;
+function goToHome() {
+    closeModal('historyModal');
+    closeModal('myProductsModal');
+    closeModal('userMenuPage');
+    closeModal('cartPage');
+    closeModal('productDetailPage');
 }
 
-// ==========================================
-//   UTILITIES
-// ==========================================
-
+// --- MISC ---
 function toast(m, error = false) {
     const t = document.createElement('div');
     t.className = 'toast visible';
     if (error) t.style.borderLeft = '5px solid var(--danger)';
     else t.style.borderLeft = '5px solid var(--success)';
-
     t.innerHTML = (error ? ICONS.close : ICONS.check) + ' ' + m;
     document.getElementById('toastContainer').appendChild(t);
-    setTimeout(() => { t.remove() }, 2000);
+    setTimeout(() => {
+        t.remove()
+    }, 2000);
 }
 
 function copyText(t) {
@@ -1250,33 +1105,27 @@ function setSort(t) {
     applyFilter();
 }
 
-// ==========================================
-//   API CALLS (ADMIN STUBS)
-// ==========================================
-
+// --- ADMIN API STUBS ---
 async function loadProducts() {
     try {
         const r = await fetch('/api/products');
         const d = await r.json();
-        if(d.products && Array.isArray(d.products)) {
-            allProducts = d.products;
-            applyFilter();
-        } else {
-            console.error("Invalid product data", d);
-        }
-        if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
-    } catch (e) {
-        console.error("Load Products Error:", e);
-        if(document.getElementById('loading')) document.getElementById('loading').innerHTML = 'Gagal memuat data.';
-    }
+        allProducts = d.products;
+        applyFilter();
+        document.getElementById('loading').style.display = 'none'
+    } catch {}
 }
 
 async function doLogin() {
     const p = document.getElementById('adminPass').value;
     const r = await fetch('/api/admin/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password: p })
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            password: p
+        })
     });
     const d = await r.json();
     if (d.success) {
@@ -1293,11 +1142,12 @@ function doLogout() {
     checkAdminSession();
 }
 
+// ... (Fungsi Admin Add/Edit/Delete/Stock sama seperti kode sebelumnya, hanya memastikan UI terhubung) ...
 function admOpenStockSelector() {
     const l = document.getElementById('productSelectList');
     l.innerHTML = '';
     allProducts.forEach(p => {
-        l.innerHTML += `<div onclick="admFetchStock('${p.code}', '${p.name}')" style="padding:10px;border-bottom:1px solid #eee;cursor:pointer;">${p.name}</div>`;
+        l.innerHTML += `<div onclick="admFetchStock('${p.code}', '${p.name}')" style="padding:10px;border-bottom:1px solid #eee;cursor:pointer;">${p.name}</div>`
     });
     openModal('selectProductModal');
 }
@@ -1308,13 +1158,15 @@ async function admFetchStock(c, n) {
     document.getElementById('stkModalName').innerText = n || c;
     openModal('stockDetailModal');
     const r = await fetch('/api/admin/get-stock?code=' + c, {
-        headers: { 'Admin-Key': localStorage.getItem('adminKey') }
+        headers: {
+            'Admin-Key': localStorage.getItem('adminKey')
+        }
     });
     const d = await r.json();
     const l = document.getElementById('stockListContainer');
     l.innerHTML = '';
     if (d.stock.length === 0) l.innerHTML = '<p style="color:#888;">Stok Kosong</p>';
-    else d.stock.forEach((s, i) => l.innerHTML += `<div class="stock-item"><span>${s.substring(0, 25)}...</span><span style="color:var(--danger);cursor:pointer" onclick="admDelStockDirect(${i})">${ICONS.trash}</span></div>`);
+    else d.stock.forEach((s, i) => l.innerHTML += `<div class="stock-item"><span>${s.substring(0,25)}...</span><span style="color:var(--danger);cursor:pointer" onclick="admDelStockDirect(${i})">${ICONS.trash}</span></div>`);
 }
 
 async function admAddStockDirect() {
@@ -1325,7 +1177,11 @@ async function admAddStockDirect() {
             'Content-Type': 'application/json',
             'Admin-Key': localStorage.getItem('adminKey')
         },
-        body: JSON.stringify({ code: activeStockCode, action: 'add', data: v })
+        body: JSON.stringify({
+            code: activeStockCode,
+            action: 'add',
+            data: v
+        })
     });
     document.getElementById('newStockDirect').value = '';
     admFetchStock(activeStockCode, document.getElementById('stkModalName').innerText);
@@ -1341,7 +1197,11 @@ async function admDelStockDirect(i) {
             'Content-Type': 'application/json',
             'Admin-Key': localStorage.getItem('adminKey')
         },
-        body: JSON.stringify({ code: activeStockCode, action: 'delete', index: i })
+        body: JSON.stringify({
+            code: activeStockCode,
+            action: 'delete',
+            index: i
+        })
     });
     admFetchStock(activeStockCode, document.getElementById('stkModalName').innerText);
     loadProducts();
@@ -1381,25 +1241,22 @@ function loadEditForm() {
 }
 
 // VOUCHER LOGIC
-
 async function loadAdminVouchers() {
     const r = await fetch('/api/admin/vouchers', {
-        headers: { 'Admin-Key': localStorage.getItem('adminKey') }
+        headers: {
+            'Admin-Key': localStorage.getItem('adminKey')
+        }
     });
     const d = await r.json();
     const l = document.getElementById('voucherListAdmin');
     l.innerHTML = '';
     if (d.vouchers.length === 0) {
         l.innerHTML = '<p style="text-align:center;color:#888;">Belum ada voucher</p>';
-        return;
+        return
     }
     d.vouchers.forEach(v => {
-        l.innerHTML += `
-            <div class="stock-item" style="display:flex;justify-content:space-between;">
-                <div><strong>${v.code}</strong> (Rp ${v.amount.toLocaleString()})</div>
-                <div style="cursor:pointer;color:var(--danger);" onclick="admDelVoucher('${v.code}')">${ICONS.trash}</div>
-            </div>`;
-    });
+        l.innerHTML += `<div class="stock-item" style="display:flex;justify-content:space-between;"><div><strong>${v.code}</strong> (Rp ${v.amount.toLocaleString()})</div><div style="cursor:pointer;color:var(--danger);" onclick="admDelVoucher('${v.code}')">${ICONS.trash}</div></div>`
+    })
 }
 
 async function admSaveVoucher() {
@@ -1414,10 +1271,15 @@ async function admSaveVoucher() {
             'Content-Type': 'application/json',
             'Admin-Key': localStorage.getItem('adminKey')
         },
-        body: JSON.stringify({ code: c, amount: a, validFor: t, limit: l })
+        body: JSON.stringify({
+            code: c,
+            amount: a,
+            validFor: t,
+            limit: l
+        })
     });
     toast("Voucher Dibuat");
-    loadAdminVouchers();
+    loadAdminVouchers()
 }
 
 async function admDelVoucher(c) {
@@ -1428,10 +1290,12 @@ async function admDelVoucher(c) {
             'Content-Type': 'application/json',
             'Admin-Key': localStorage.getItem('adminKey')
         },
-        body: JSON.stringify({ code: c })
+        body: JSON.stringify({
+            code: c
+        })
     });
     toast("Dihapus");
-    loadAdminVouchers();
+    loadAdminVouchers()
 }
 
 async function admDelete() {
@@ -1444,10 +1308,12 @@ async function admDelete() {
             'Content-Type': 'application/json',
             'Admin-Key': localStorage.getItem('adminKey')
         },
-        body: JSON.stringify({ code: c })
+        body: JSON.stringify({
+            code: c
+        })
     });
     toast("Terhapus");
-    location.reload();
+    location.reload()
 }
 
 async function admSave() {
@@ -1468,8 +1334,7 @@ async function admSave() {
         })
     });
     toast("Update Sukses");
-    loadProducts();
+    loadProducts()
 }
 
-// Start the App
 init();

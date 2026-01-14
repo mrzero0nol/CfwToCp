@@ -201,6 +201,8 @@ if (!isMock) {
             console.log('Database connected successfully!');
             connection.release();
         } catch (err) {
+            console.error('!!! DATABASE CONNECTION ERROR !!!');
+            console.error(err);
             logError('Database Connection Failed', err);
         }
     })();

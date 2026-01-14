@@ -267,7 +267,9 @@ app.get('/api/products', async (req, res) => {
         }));
         res.json({ products });
     } catch (e) {
-        res.status(500).json({ products: [] });
+        console.error("[API_PRODUCTS_ERROR]", e);
+        // Return error object with 200 OK to prevent cPanel HTML error pages
+        res.json({ error: true, message: "Database Error" });
     }
 });
 
