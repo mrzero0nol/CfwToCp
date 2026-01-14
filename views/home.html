@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    {{PARTIAL_HEAD}}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand" id="headerTitle">{{STORE_NAME}}</div>
+        <div class="nav-actions">
+            <div class="nav-search-wrapper">
+                <span class="nav-search-icon">{{ICON_SEARCH}}</span>
+                <input type="text" id="searchInput" class="nav-search-box" placeholder="Cari..." onkeyup="handleSearch(event)">
+            </div>
+            <div class="nav-filter-btn" onclick="openSheet()">{{ICON_FILTER}}</div>
+        </div>
+    </nav>
+
+    <div id="bannerCarousel" class="banner-container"></div>
+
+    <div class="cat-scroll-container">
+        <div class="cat-scroll" id="catList"></div>
+    </div>
+
+    <div class="container" style="padding-bottom: 80px;">
+        <div id="loading" class="loader"></div>
+        <div id="productList" class="grid"></div>
+        <div id="noResults" style="display:none; text-align:center; padding:50px; color:#94A3B8;">
+            Produk tidak ditemukan.
+        </div>
+    </div>
+
+    <div id="quickAdminBtn" class="admin-float-btn" onclick="openAdminMenu()">{{ICON_SETTINGS}}</div>
+
+    {{PARTIAL_NAV_BOTTOM}}
+
+    <!-- Modals & Sheets (Shared) -->
+    <div id="toastContainer" class="toast-container"></div>
+    <div id="sheetOverlay" class="sheet-overlay" onclick="closeSheet()"></div>
+    <div id="sortSheet" class="bottom-sheet">
+        <div class="sheet-header">Urutkan Produk</div>
+        <div class="sheet-option" onclick="setSort('newest')">Terbaru</div>
+        <div class="sheet-option" onclick="setSort('price_low')">Harga Terendah</div>
+        <div class="sheet-option" onclick="setSort('price_high')">Harga Tertinggi</div>
+    </div>
+
+    <!-- Auth Modal (Global) -->
+    <div id="authModal" class="modal" style="z-index:9000;">
+        <div class="modal-content" style="max-width:350px;">
+            <h3 style="margin-top:0; text-align:center; margin-bottom:20px; color:var(--primary);">Selamat Datang</h3>
+            <div class="auth-tabs">
+                <div class="auth-tab active" id="tabLogin" onclick="switchAuth('login')">Masuk</div>
+                <div class="auth-tab" id="tabRegister" onclick="switchAuth('register')">Daftar</div>
+            </div>
+            <div id="formLogin">
+                <input id="loginUser" class="input-field" placeholder="Username">
+                <input id="loginPass" type="password" class="input-field" placeholder="Password">
+                <div class="cf-turnstile-fake" onclick="toggleCaptcha(this)">
+                    <div class="cf-check-box" id="captchaBoxLogin">{{ICON_CHECK}}</div>
+                    <div class="cf-text">Verify you are human</div>
+                </div>
+                <button class="btn-primary" onclick="loginUser()">Masuk</button>
+            </div>
+            <div id="formRegister" style="display:none;">
+                <input id="regUser" class="input-field" placeholder="Username Baru">
+                <input id="regPass" type="password" class="input-field" placeholder="Password Baru">
+                <div class="cf-turnstile-fake" onclick="toggleCaptcha(this)">
+                    <div class="cf-check-box" id="captchaBoxReg">{{ICON_CHECK}}</div>
+                    <div class="cf-text">Verify you are human</div>
+                </div>
+                <button class="btn-primary" onclick="registerUser()">Daftar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Modal -->
+    <div id="adminMenuPage" class="fs-modal">
+        <!-- Admin content loaded dynamically or kept here if prefer -->
+        <div class="fs-header">
+            <div>Admin Panel</div>
+            <button style="background:none; border:none; cursor:pointer;" onclick="closeAdminMenu()">{{ICON_CLOSE}}</button>
+        </div>
+        <div class="admin-container">
+             <div class="admin-sidebar" id="adminSidebar">
+                <div class="sidebar-item active" onclick="switchAdminTab('prod')" id="sbProd">{{ICON_BOX}}</div>
+                <div class="sidebar-item" onclick="switchAdminTab('vouc')" id="sbVouc">{{ICON_TICKET}}</div>
+                <div class="sidebar-item" onclick="switchAdminTab('stats')" id="sbStats">{{ICON_CHART}}</div>
+                <div class="sidebar-item" onclick="switchAdminTab('conf')" id="sbConf">{{ICON_SETTINGS}}</div>
+                 <div class="sidebar-item" onclick="doLogout()" style="margin-top:auto; color:var(--danger); background: #FEF2F2;">{{ICON_LOGOUT}}</div>
+            </div>
+            <div class="admin-content">
+                <!-- Admin Tabs Content (Simplified for brevity, can inject) -->
+                <div id="adminTabProd">
+                    <div class="admin-section-title">Manajemen Produk</div>
+                    <!-- ... Admin UI ... -->
+                    <button class="btn-primary" onclick="location.href='/admin/dashboard'">Buka Dashboard Full</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">Admin Area</h3>
+            <input type="password" id="adminPass" class="input-field" placeholder="Password">
+            <button class="btn-primary" onclick="doLogin()">Masuk</button>
+        </div>
+    </div>
+
+    <script>
+    const ICONS = {{ICONS_JSON}};
+    let BANNERS = {{BANNERS_JSON}};
+    let CATEGORIES = {{CATEGORIES_JSON}};
+    </script>
+    <script src="/js/script.js"></script>
+    <script>
+        // Page Specific Init
+        document.addEventListener('DOMContentLoaded', () => {
+            initBannerSlider();
+            loadProducts();
+            renderCategories();
+        });
+    </script>
+</body>
+</html>

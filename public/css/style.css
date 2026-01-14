@@ -57,6 +57,11 @@ svg {
     display: block;
 }
 
+a {
+    text-decoration: none;
+    color: inherit;
+}
+
 /*
 * ==========================================
 *   NAVBAR (HEADER)
@@ -219,14 +224,25 @@ svg {
 *   CATEGORY LIST
 * ==========================================
 */
+.cat-scroll-container {
+    position: sticky;
+    top: 54px;
+    background: var(--bg);
+    z-index: 40;
+    padding: 10px 0;
+    margin-bottom: 5px;
+}
+
 .cat-scroll {
     display: flex;
     gap: 8px;
     overflow-x: auto;
-    padding: 0 4px 5px 4px;
+    padding: 0 16px;
     scrollbar-width: none;
     max-width: 1200px;
     margin: 0 auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
 }
 
 .cat-scroll::-webkit-scrollbar {
@@ -495,6 +511,14 @@ svg {
     justify-content: space-between;
     font-weight: 700;
     font-size: 1.1rem;
+    z-index: 50;
+}
+
+.fixed-top {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
 }
 
 .modal {

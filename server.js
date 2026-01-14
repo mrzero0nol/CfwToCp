@@ -77,49 +77,79 @@ async function getConfig() {
     return conf;
 }
 
-async function serveHtml(req, res) {
-    const conf = await getConfig();
+// Unified View Renderer
+async function renderView(viewName, req, res, extraVars = {}) {
+    try {
+        const conf = await getConfig();
+        const viewsDir = path.join(__dirname, 'views');
 
-    let title = conf.ogTitle || DEFAULT_CONFIG.ogTitle;
-    let desc = conf.ogDesc || DEFAULT_CONFIG.ogDesc;
-    let image = conf.ogImage || DEFAULT_CONFIG.ogImage;
+        // 1. Read Main View
+        let html = fs.readFileSync(path.join(viewsDir, viewName), 'utf8');
 
-    if (req.params.code) {
-        const code = req.params.code;
-        try {
-            const [rows] = await pool.execute("SELECT * FROM products WHERE code = ?", [code]);
-            if (rows.length > 0) {
-                const prod = rows[0];
-                title = `${prod.name} - ${conf.storeName || DEFAULT_CONFIG.storeName}`;
-                desc = prod.description || `Beli ${prod.name} murah di sini!`;
-                if (prod.image_url) image = prod.image_url;
-            }
-        } catch (e) {
-            console.error("PDP Error", e);
+        // 2. Read Partials
+        const head = fs.readFileSync(path.join(viewsDir, 'partials', 'head.html'), 'utf8');
+        const nav = fs.readFileSync(path.join(viewsDir, 'partials', 'nav_bottom.html'), 'utf8');
+        const headerSimple = fs.readFileSync(path.join(viewsDir, 'partials', 'header_simple.html'), 'utf8');
+
+        // 3. Inject Partials
+        html = html.replace('{{PARTIAL_HEAD}}', head)
+                   .replace('{{PARTIAL_NAV_BOTTOM}}', nav)
+                   .replace('{{PARTIAL_HEADER_SIMPLE}}', headerSimple);
+
+        // 4. Prepare Variables
+        const vars = {
+            STORE_NAME: conf.storeName || DEFAULT_CONFIG.storeName,
+            STORE_FAVICON: conf.favicon || DEFAULT_CONFIG.favicon,
+            CONTACT_URL: conf.contact || DEFAULT_CONFIG.contact,
+            OG_TITLE: conf.ogTitle || DEFAULT_CONFIG.ogTitle,
+            OG_DESC: conf.ogDesc || DEFAULT_CONFIG.ogDesc,
+            OG_IMAGE: conf.ogImage || DEFAULT_CONFIG.ogImage,
+            PAGE_TITLE: conf.storeName || DEFAULT_CONFIG.storeName,
+            ICONS_JSON: JSON.stringify(ICONS),
+            BANNERS_JSON: JSON.stringify(conf.banners || DEFAULT_CONFIG.banners),
+            CATEGORIES_JSON: JSON.stringify(conf.cats || DEFAULT_CONFIG.cats),
+
+            // Default Nav Active States
+            NAV_ACTIVE_HOME: viewName === 'home.html' ? 'active' : '',
+            NAV_ACTIVE_CART: viewName === 'cart.html' ? 'active' : '',
+            NAV_ACTIVE_HISTORY: viewName === 'history.html' ? 'active' : '',
+            NAV_ACTIVE_PROFILE: viewName === 'profile.html' ? 'active' : '',
+            NAV_ACTIVE_ASSETS: viewName === 'assets.html' ? 'active' : '',
+
+            // Header Simple Vars
+            BACK_URL: 'javascript:history.back()',
+            PAGE_HEADER_TITLE: 'Menu',
+
+            ...extraVars // Override/Extend
+        };
+
+        // Page Titles
+        if(viewName === 'cart.html') vars.PAGE_HEADER_TITLE = 'Keranjang';
+        if(viewName === 'history.html') vars.PAGE_HEADER_TITLE = 'Riwayat Transaksi';
+        if(viewName === 'profile.html') vars.PAGE_HEADER_TITLE = 'Profil Saya';
+        if(viewName === 'assets.html') vars.PAGE_HEADER_TITLE = 'Aset Digital';
+        if(viewName === 'product.html') {
+             vars.PAGE_HEADER_TITLE = 'Detail Produk';
+             vars.PAGE_TITLE = vars.PROD_NAME || 'Produk';
         }
-    }
 
-    fs.readFile(path.join(__dirname, 'template.html'), 'utf8', (err, data) => {
-        if (err) return res.status(500).send('Error loading template');
+        // 5. Replace Variables
+        Object.keys(vars).forEach(k => {
+            const regex = new RegExp(`{{${k}}}`, 'g');
+            html = html.replace(regex, vars[k] || '');
+        });
 
-        let html = data
-            .replace(/{{STORE_FAVICON}}/g, conf.favicon || DEFAULT_CONFIG.favicon)
-            .replace(/{{OG_IMAGE}}/g, image)
-            .replace(/{{OG_TITLE}}/g, title)
-            .replace(/{{OG_DESC}}/g, desc)
-            .replace(/{{STORE_NAME}}/g, conf.storeName || DEFAULT_CONFIG.storeName)
-            .replace(/{{CONTACT_URL}}/g, conf.contact || DEFAULT_CONFIG.contact)
-            .replace('{{ICONS_JSON}}', JSON.stringify(ICONS))
-            .replace('{{BANNERS_JSON}}', JSON.stringify(conf.banners || DEFAULT_CONFIG.banners))
-            .replace('{{CATEGORIES_JSON}}', JSON.stringify(conf.cats || DEFAULT_CONFIG.cats));
-
-            Object.keys(ICONS).forEach(key => {
-                 const regex = new RegExp(`{{ICON_${key.toUpperCase()}}}`, 'g');
-                 html = html.replace(regex, ICONS[key]);
-            });
+        // 6. Replace Icons
+        Object.keys(ICONS).forEach(key => {
+             const regex = new RegExp(`{{ICON_${key.toUpperCase()}}}`, 'g');
+             html = html.replace(regex, ICONS[key]);
+        });
 
         res.send(html);
-    });
+    } catch (e) {
+        console.error("Render Error:", e);
+        res.status(500).send("Internal Server Error");
+    }
 }
 
 async function recordSale(name, price, content) {
@@ -172,9 +202,39 @@ async function checkPakasirStatus(oid, amount) {
 
 // --- ROUTES ---
 
-// 1. Serving HTML Utama
-app.get('/', (req, res) => serveHtml(req, res));
-app.get('/p/:code', (req, res) => serveHtml(req, res));
+// 1. Serving HTML Pages (MPA)
+app.get('/', (req, res) => renderView('home.html', req, res));
+app.get('/cart', (req, res) => renderView('cart.html', req, res));
+app.get('/history', (req, res) => renderView('history.html', req, res));
+app.get('/profile', (req, res) => renderView('profile.html', req, res));
+app.get('/assets', (req, res) => renderView('assets.html', req, res));
+app.get('/p/:code', async (req, res) => {
+    // Pre-fetch product for Meta Tags
+    const code = req.params.code;
+    let extraVars = {};
+    try {
+        const [rows] = await pool.execute("SELECT * FROM products WHERE code = ?", [code]);
+        if (rows.length > 0) {
+            const p = rows[0];
+            extraVars = {
+                PROD_CODE: p.code,
+                PROD_NAME: p.name,
+                PROD_PRICE: Number(p.price) === 0 ? 'GRATIS' : 'Rp ' + Number(p.price).toLocaleString(),
+                PROD_DESC: p.description || '',
+                PROD_IMG: p.image_url || '{{STORE_FAVICON}}',
+                PROD_STOCK: 'Ready', // Simple check
+                OG_TITLE: p.name,
+                OG_DESC: p.description,
+                OG_IMAGE: p.image_url
+            };
+            // Get accurate stock
+            const [s] = await pool.execute("SELECT COUNT(*) as cnt FROM product_stocks WHERE product_code = ? AND is_sold = 0", [code]);
+            extraVars.PROD_STOCK = s[0].cnt;
+        }
+    } catch(e) {}
+
+    renderView('product.html', req, res, extraVars);
+});
 
 // 2. API Config
 app.get('/api/config', async (req, res) => {
