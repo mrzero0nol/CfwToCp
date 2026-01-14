@@ -242,15 +242,6 @@ app.get('/contact', async (req, res) => {
     res.redirect(conf.contact || DEFAULT_CONFIG.contact);
 });
 
-// Catch-All Route (Must be last) - For 404 or redirect to Home
-app.get('*', (req, res) => {
-    if (req.accepts('html')) {
-        res.redirect('/');
-    } else {
-        res.status(404).json({ error: 'Not found' });
-    }
-});
-
 // 2. API Config
 app.get('/api/config', async (req, res) => {
     const conf = await getConfig();
@@ -659,6 +650,15 @@ app.post('/api/admin/save-config', adminMiddleware, async (req, res) => {
         res.json({ success: true });
     } catch(e) {
         res.json({ success: false });
+    }
+});
+
+// Catch-All Route (Must be last) - For 404 or redirect to Home
+app.get('*', (req, res) => {
+    if (req.accepts('html')) {
+        res.redirect('/');
+    } else {
+        res.status(404).json({ error: 'Not found' });
     }
 });
 
