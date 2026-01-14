@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    {{PARTIAL_HEAD}}
+</head>
+<body>
+    {{PARTIAL_HEADER_SIMPLE}}
+
+    <div id="cartList" style="flex:1; padding:20px; padding-bottom:100px;"></div>
+
+    <div style="position:fixed; bottom:80px; left:0; right:0; background:white; padding:20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; z-index:20;">
+         <div>
+            <div style="font-size:0.8rem; color:var(--text-muted);">Total Dipilih</div>
+            <div id="cartTotal" style="font-size:1.2rem; font-weight:800; color:var(--primary);">Rp 0</div>
+         </div>
+         <button class="btn-primary" style="width:auto; padding:12px 30px;" onclick="checkoutCart()">Checkout</button>
+    </div>
+
+    {{PARTIAL_NAV_BOTTOM}}
+
+    <div id="toastContainer" class="toast-container"></div>
+    <div id="trxModal" class="modal">
+        <div class="modal-content">
+            <div style="position:absolute; top:10px; right:10px; cursor:pointer;" onclick="closeModal('trxModal')">{{ICON_CLOSE}}</div>
+            <div id="trxBody"></div>
+        </div>
+    </div>
+
+    <script>
+    const ICONS = {{ICONS_JSON}};
+    </script>
+    <script src="/js/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCart();
+            openCartPage(); // Specific function for page
+        });
+    </script>
+</body>
+</html>

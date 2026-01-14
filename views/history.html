@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    {{PARTIAL_HEAD}}
+</head>
+<body>
+    {{PARTIAL_HEADER_SIMPLE}}
+
+    <div style="padding:15px; display:flex; gap:10px; overflow-x:auto;">
+        <button onclick="filterHist('all')" class="cat-pill active" id="tabAll">Semua</button>
+        <button onclick="filterHist('pending')" class="cat-pill" id="tabPending">Belum Bayar</button>
+        <button onclick="filterHist('paid')" class="cat-pill" id="tabPaid">Selesai</button>
+    </div>
+    <div id="histList" style="padding:0 15px 100px;"></div>
+
+    {{PARTIAL_NAV_BOTTOM}}
+
+    <div id="trxModal" class="modal">
+        <div class="modal-content">
+            <div style="position:absolute; top:10px; right:10px; cursor:pointer;" onclick="closeModal('trxModal')">{{ICON_CLOSE}}</div>
+            <div id="trxBody"></div>
+        </div>
+    </div>
+
+    <script>
+    const ICONS = {{ICONS_JSON}};
+    </script>
+    <script src="/js/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadHistoryPage();
+        });
+    </script>
+</body>
+</html>

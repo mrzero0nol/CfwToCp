@@ -27,33 +27,20 @@ async function init() {
     checkSession();
     loadCart();
     checkAdminSession();
-    await loadProducts(); // Initial Fetch
-    initBannerSlider();
+    // await loadProducts(); // Don't load everywhere, specific page will call it
     updateCartCount();
 
-    // CHECK URL ROUTING (Client-side)
-    const path = window.location.pathname;
-    if (path.startsWith('/p/')) {
-        const code = path.split('/')[2];
-        if (code) {
-            // Wait for products to load then open PDP
-            const checkProd = setInterval(() => {
-                if (allProducts.length > 0) {
-                    clearInterval(checkProd);
-                    const p = allProducts.find(x => x.code === code);
-                    if (p) openBuy(code);
-                }
-            }, 100);
-        }
-    }
-
-    // Handle Back Button (History API)
+    // Handle Back Button (Modal/Sheet Close)
     window.addEventListener('popstate', function(event) {
-        const actives = document.querySelectorAll('.modal.active, .fs-modal.active, .bottom-sheet.active');
-        if (actives.length > 0) {
-            actives.forEach(el => {
-                if (el.id !== 'authModal') el.classList.remove('active');
-            });
+        if (event.state && event.state.modal) {
+            // handled by history back logic if needed
+        } else {
+            const actives = document.querySelectorAll('.modal.active, .bottom-sheet.active');
+            if (actives.length > 0) {
+                actives.forEach(el => {
+                    if (el.id !== 'authModal') el.classList.remove('active');
+                });
+            }
         }
     });
 }
@@ -142,46 +129,61 @@ function handleRegImg(input) {
     r.readAsDataURL(f);
 }
 
-function registerUser() {
+async function registerUser() {
     if (!captchaVerified) return toast("Silakan verifikasi captcha", true);
     const u = document.getElementById('regUser').value.trim();
     const p = document.getElementById('regPass').value.trim();
 
     if (!u || !p) return toast("Isi Username & Password", true);
-    if (localStorage.getItem('user_db_' + u)) return toast("Username sudah ada", true);
 
-    const userData = {
-        username: u,
-        password: p,
-        image: tempRegImg,
-        joined: new Date().toISOString()
-    };
+    try {
+        const r = await fetch('/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        const d = await r.json();
 
-    localStorage.setItem('user_db_' + u, JSON.stringify(userData));
-    localStorage.setItem('user_session', u);
-
-    toast("Registrasi Berhasil!");
-    currentUser = u;
-    updateProfileUI(userData);
-    document.getElementById('authModal').classList.remove('active');
+        if (d.success) {
+            toast("Registrasi Berhasil! Silakan Login.");
+            switchAuth('login');
+        } else {
+            toast(d.message || "Gagal Daftar", true);
+        }
+    } catch(e) {
+        toast("Error Koneksi", true);
+    }
 }
 
-function loginUser() {
+async function loginUser() {
     if (!captchaVerified) return toast("Silakan verifikasi captcha", true);
     const u = document.getElementById('loginUser').value.trim();
     const p = document.getElementById('loginPass').value.trim();
 
-    const stored = localStorage.getItem('user_db_' + u);
-    if (!stored) return toast("User tidak ditemukan", true);
+    try {
+        const r = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: u, password: p })
+        });
+        const d = await r.json();
 
-    const userData = JSON.parse(stored);
-    if (userData.password !== p) return toast("Password Salah", true);
+        if (d.success) {
+            localStorage.setItem('user_session', d.user.username);
+            // Simpan profil lokal agar UI tidak blank
+            const userData = { username: d.user.username, image: '' };
+            localStorage.setItem('user_db_' + d.user.username, JSON.stringify(userData));
 
-    localStorage.setItem('user_session', u);
-    toast("Login Berhasil");
-    currentUser = u;
-    updateProfileUI(userData);
-    document.getElementById('authModal').classList.remove('active');
+            toast("Login Berhasil");
+            currentUser = d.user.username;
+            updateProfileUI(userData);
+            document.getElementById('authModal').classList.remove('active');
+        } else {
+            toast(d.message || "Gagal Login", true);
+        }
+    } catch(e) {
+        toast("Error Koneksi", true);
+    }
 }
 
 function logoutUser() {
@@ -225,7 +227,7 @@ function openContact() {
 // --- MODAL & SHEET SYSTEM ---
 
 function openModal(id) {
-    window.history.pushState({ modal: id }, '');
+    // window.history.pushState({ modal: id }, ''); // Optional for simple modals
     document.getElementById(id).classList.add('active');
 }
 
@@ -293,8 +295,12 @@ function updateCartCount() {
     }
 }
 
-function openCart() {
+// --- PAGE SPECIFIC LOGIC ---
+
+// CART PAGE
+function openCartPage() {
     const l = document.getElementById('cartList');
+    if(!l) return;
     l.innerHTML = '';
 
     if (cart.length === 0) {
@@ -302,8 +308,9 @@ function openCart() {
             <div style="text-align:center; padding:50px; color:var(--text-muted); display:flex; flex-direction:column; align-items:center; gap:10px;">
                 ${ICONS.cart}
                 <span>Keranjang kosong</span>
+                <a href="/" class="btn-primary" style="width:auto; margin-top:10px;">Belanja Sekarang</a>
             </div>`;
-        document.getElementById('cartTotal').innerText = 'Rp 0';
+        if(document.getElementById('cartTotal')) document.getElementById('cartTotal').innerText = 'Rp 0';
     } else {
         cart.forEach((item, idx) => {
             const checkClass = item.selected ? 'active' : '';
@@ -321,12 +328,11 @@ function openCart() {
         });
         updateCheckoutBtn();
     }
-    openModal('cartPage');
 }
 
 function toggleCartSelect(idx) {
     cart[idx].selected = !cart[idx].selected;
-    openCart(); // Re-render
+    openCartPage(); // Re-render page
 }
 
 function updateCheckoutBtn() {
@@ -334,13 +340,13 @@ function updateCheckoutBtn() {
     cart.forEach(item => {
         if (item.selected) total += (item.price * item.qty);
     });
-    document.getElementById('cartTotal').innerText = 'Rp ' + total.toLocaleString();
+    if(document.getElementById('cartTotal')) document.getElementById('cartTotal').innerText = 'Rp ' + total.toLocaleString();
 }
 
 function removeFromCart(idx) {
     cart.splice(idx, 1);
     saveCart();
-    openCart();
+    openCartPage();
 }
 
 function checkoutCart() {
@@ -378,26 +384,46 @@ function checkoutCart() {
 // ==========================================
 
 function openBuy(code) {
-    currentCode = code;
-    const p = allProducts.find(x => x.code === code);
-    if (!p) return;
-
-    // Populate PDP
-    document.getElementById('pdpImage').src = p.img || FAVICON_URL;
-    document.getElementById('pdpPrice').innerText = p.price === 0 ? 'GRATIS' : 'Rp ' + p.price.toLocaleString();
-    document.getElementById('pdpName').innerText = p.name;
-    document.getElementById('pdpStock').innerText = 'Stok: ' + p.stock;
-    document.getElementById('pdpDesc').innerText = p.desc || 'Tidak ada deskripsi.';
-
-    openModal('productDetailPage');
+    window.location.href = '/p/' + code;
 }
 
-function closeProductDetail() {
-    closeModal('productDetailPage');
-}
+function addToCartCurrent(code) {
+    // If not provided (from PDP page variable)
+    if(!code) code = currentCode;
 
-function addToCartCurrent() {
-    addToCart(currentCode);
+    // Fetch product info if allProducts empty (direct access)
+    // For now simple check
+    let p = allProducts.find(x => x.code === code);
+
+    // If on PDP, we might not have allProducts loaded, but we have DOM
+    if(!p && document.getElementById('pdpName')) {
+        // Construct minimal P
+        const priceStr = document.getElementById('pdpPrice').innerText.replace('Rp ', '').replace(/,/g, '').replace('GRATIS', '0');
+        p = {
+            code: code,
+            name: document.getElementById('pdpName').innerText,
+            price: parseInt(priceStr),
+            img: document.getElementById('pdpImage').src
+        };
+    }
+
+    if (!p) return; // Should fetch from API if really needed
+
+    const exist = cart.find(x => x.code === code);
+    if (exist) {
+        exist.qty++;
+    } else {
+        cart.push({
+            code: code,
+            qty: 1,
+            price: p.price,
+            name: p.name,
+            img: p.img,
+            selected: false
+        });
+    }
+    saveCart();
+    toast("Masuk Keranjang");
 }
 
 function shareCurrentProduct() {
@@ -414,18 +440,32 @@ function shareCurrentProduct() {
     }
 }
 
-function buyCurrent() {
-    // Direct Buy Logic
-    const p = allProducts.find(x => x.code === currentCode);
+function buyCurrent(code) {
+    if(code) currentCode = code;
+
+    let p = allProducts.find(x => x.code === currentCode);
+
+    // Fallback for PDP direct load
+    if(!p && document.getElementById('pdpName')) {
+        const priceStr = document.getElementById('pdpPrice').innerText.replace('Rp ', '').replace(/,/g, '').replace('GRATIS', '0');
+        const stockStr = document.getElementById('pdpStock').innerText.replace('Stok: ', '');
+        p = {
+            code: currentCode,
+            name: document.getElementById('pdpName').innerText,
+            price: parseInt(priceStr),
+            stock: parseInt(stockStr) || 0
+        };
+    }
+
     if (!p || p.stock < 1) return toast("Stok Habis");
 
     const html = `
         <div>
             <h3 style="margin-top:0;">${p.name}</h3>
             <div style="display:flex; justify-content:center; align-items:center; gap:15px; margin:20px 0;">
-                <button onclick="changeQty(-1)" style="width:35px;height:35px;border-radius:8px;border:1px solid #ddd;background:white;font-weight:bold;">-</button>
+                <button onclick="changeQty(-1, ${p.price}, ${p.stock})" style="width:35px;height:35px;border-radius:8px;border:1px solid #ddd;background:white;font-weight:bold;">-</button>
                 <input id="mQty" value="1" readonly style="width:50px;text-align:center;font-weight:bold;border:none;font-size:1.1rem;background:transparent;">
-                <button onclick="changeQty(1)" style="width:35px;height:35px;border-radius:8px;border:1px solid #ddd;background:white;font-weight:bold;">+</button>
+                <button onclick="changeQty(1, ${p.price}, ${p.stock})" style="width:35px;height:35px;border-radius:8px;border:1px solid #ddd;background:white;font-weight:bold;">+</button>
             </div>
             <div style="font-weight:800; font-size:1.2rem; margin-bottom:15px; color:var(--primary);" id="mTotal">
                 ${p.price === 0 ? 'GRATIS' : 'Rp ' + p.price.toLocaleString()}
@@ -437,16 +477,15 @@ function buyCurrent() {
     openModal('trxModal');
 }
 
-function changeQty(d) {
+function changeQty(d, price, maxStock) {
     const e = document.getElementById('mQty');
     let v = parseInt(e.value) + d;
-    const p = allProducts.find(x => x.code === currentCode);
 
     if (v < 1) v = 1;
-    if (v > p.stock) v = p.stock;
+    if (v > maxStock) v = maxStock;
 
     e.value = v;
-    document.getElementById('mTotal').innerText = p.price === 0 ? 'GRATIS' : 'Rp ' + (p.price * v).toLocaleString();
+    document.getElementById('mTotal').innerText = price === 0 ? 'GRATIS' : 'Rp ' + (price * v).toLocaleString();
 }
 
 async function processBuy() {
@@ -589,6 +628,7 @@ function initBannerSlider() {
 
 function renderCategories() {
     const l = document.getElementById('catList');
+    if(!l) return;
     l.innerHTML = '';
     CATEGORIES.forEach(c => {
         l.innerHTML += `<div class="cat-pill ${c === currentCat ? 'active' : ''}" onclick="setCategory('${c}')">${c}</div>`;
@@ -602,7 +642,9 @@ function setCategory(c) {
 }
 
 function applyFilter() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
+    const searchInput = document.getElementById('searchInput');
+    const q = searchInput ? searchInput.value.toLowerCase() : '';
+
     let f = allProducts.filter(p => (p.name.toLowerCase().includes(q)) && (currentCat === 'Semua' || p.category === currentCat));
 
     // Sort
@@ -611,12 +653,14 @@ function applyFilter() {
     else f.reverse();
 
     const l = document.getElementById('productList');
+    if(!l) return;
+
     l.innerHTML = '';
 
-    if (f.length === 0)
-        document.getElementById('noResults').style.display = 'block';
-    else {
-        document.getElementById('noResults').style.display = 'none';
+    if (f.length === 0) {
+        if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'block';
+    } else {
+        if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'none';
         f.forEach(p => {
             const isSoldOut = p.stock < 1;
             const btnText = isSoldOut ? 'HABIS' : 'BELI';
@@ -1086,13 +1130,20 @@ function updateHistoryStatus(oid, s, c) {
     }
 }
 
+// HISTORY PAGE
+function loadHistoryPage() {
+    filterHist('all');
+}
+
 function filterHist(t) {
     document.querySelectorAll('.cat-pill').forEach(e => e.classList.remove('active'));
-    document.getElementById(t === 'all' ? 'tabAll' : (t === 'pending' ? 'tabPending' : 'tabPaid')).classList.add('active');
+    const tabId = t === 'all' ? 'tabAll' : (t === 'pending' ? 'tabPending' : 'tabPaid');
+    if(document.getElementById(tabId)) document.getElementById(tabId).classList.add('active');
 
     const h = getHistory();
     const f = h.filter(x => (t === 'all') ? true : (t === 'pending' ? x.status === 'PENDING' : x.status === 'PAID'));
     const l = document.getElementById('histList');
+    if(!l) return;
     l.innerHTML = '';
 
     if (f.length === 0)
@@ -1114,11 +1165,6 @@ function filterHist(t) {
     });
 }
 
-function openHistory() {
-    openModal('historyModal');
-    filterHist('all');
-}
-
 function showHistoryDetail(oid) {
     const item = getHistory().find(x => x.oid === oid);
     if (!item) return;
@@ -1133,9 +1179,11 @@ function showHistoryDetail(oid) {
     }
 }
 
-function openAssets() {
+// ASSETS PAGE
+function loadAssetsPage() {
     const h = getHistory().filter(x => x.status === 'PAID');
     const l = document.getElementById('myProdList');
+    if(!l) return;
     l.innerHTML = '';
 
     if (h.length === 0)
@@ -1148,15 +1196,33 @@ function openAssets() {
 
         l.innerHTML += `<div class="asset-card" style="background:white;border-radius:12px;padding:16px;border:1px solid var(--border);margin-bottom:12px;"><strong>${i.name}</strong>${c}</div>`;
     });
-    openModal('myProductsModal');
 }
 
-function goToHome() {
-    closeModal('historyModal');
-    closeModal('myProductsModal');
-    closeModal('userMenuPage');
-    closeModal('cartPage');
-    closeModal('productDetailPage');
+// PROFILE PAGE
+function loadProfilePage() {
+    const userSession = localStorage.getItem('user_session');
+    if(userSession) {
+        const userData = JSON.parse(localStorage.getItem('user_db_' + userSession));
+        if(userData) updateProfileUI(userData);
+    }
+
+    const h = getHistory();
+    let spend = 0;
+    let assets = 0;
+
+    h.forEach(i => {
+        if (i.status === 'PAID') {
+            spend += (i.price || 0);
+            if (Array.isArray(i.content)) assets += i.content.length;
+            else assets++;
+        }
+    });
+
+    const elSpend = document.getElementById('uStatSpend');
+    const elAssets = document.getElementById('uStatAssets');
+
+    if (elSpend) elSpend.innerText = 'Rp ' + spend.toLocaleString();
+    if (elAssets) elAssets.innerText = assets;
 }
 
 // ==========================================
@@ -1192,10 +1258,17 @@ async function loadProducts() {
     try {
         const r = await fetch('/api/products');
         const d = await r.json();
-        allProducts = d.products;
-        applyFilter();
-        document.getElementById('loading').style.display = 'none';
-    } catch {}
+        if(d.products && Array.isArray(d.products)) {
+            allProducts = d.products;
+            applyFilter();
+        } else {
+            console.error("Invalid product data", d);
+        }
+        if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
+    } catch (e) {
+        console.error("Load Products Error:", e);
+        if(document.getElementById('loading')) document.getElementById('loading').innerHTML = 'Gagal memuat data.';
+    }
 }
 
 async function doLogin() {

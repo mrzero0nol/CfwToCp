@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    {{PARTIAL_HEAD}}
+</head>
+<body>
+    {{PARTIAL_HEADER_SIMPLE}}
+
+    <div id="myProdList" style="padding:20px; padding-bottom:100px;"></div>
+
+    {{PARTIAL_NAV_BOTTOM}}
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script>
+    const ICONS = {{ICONS_JSON}};
+    </script>
+    <script src="/js/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAssetsPage();
+        });
+    </script>
+</body>
+</html>
