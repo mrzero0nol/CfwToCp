@@ -628,6 +628,7 @@ function initBannerSlider() {
 
 function renderCategories() {
     const l = document.getElementById('catList');
+    if(!l) return;
     l.innerHTML = '';
     CATEGORIES.forEach(c => {
         l.innerHTML += `<div class="cat-pill ${c === currentCat ? 'active' : ''}" onclick="setCategory('${c}')">${c}</div>`;
@@ -641,7 +642,9 @@ function setCategory(c) {
 }
 
 function applyFilter() {
-    const q = document.getElementById('searchInput').value.toLowerCase();
+    const searchInput = document.getElementById('searchInput');
+    const q = searchInput ? searchInput.value.toLowerCase() : '';
+
     let f = allProducts.filter(p => (p.name.toLowerCase().includes(q)) && (currentCat === 'Semua' || p.category === currentCat));
 
     // Sort
@@ -650,12 +653,14 @@ function applyFilter() {
     else f.reverse();
 
     const l = document.getElementById('productList');
+    if(!l) return;
+
     l.innerHTML = '';
 
-    if (f.length === 0)
-        document.getElementById('noResults').style.display = 'block';
-    else {
-        document.getElementById('noResults').style.display = 'none';
+    if (f.length === 0) {
+        if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'block';
+    } else {
+        if(document.getElementById('noResults')) document.getElementById('noResults').style.display = 'none';
         f.forEach(p => {
             const isSoldOut = p.stock < 1;
             const btnText = isSoldOut ? 'HABIS' : 'BELI';

@@ -111,13 +111,13 @@
     let BANNERS = {{BANNERS_JSON}};
     let CATEGORIES = {{CATEGORIES_JSON}};
     </script>
-    <script src="/js/script.js"></script>
+    <script src="/js/script.js" defer></script>
     <script>
         // Page Specific Init
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             initBannerSlider();
-            loadProducts();
             renderCategories();
+            await loadProducts(); // Load products last
         });
     </script>
 </body>

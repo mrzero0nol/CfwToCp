@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    {{PARTIAL_HEAD}}
+</head>
+<body>
+    <div class="fs-header">
+        <div>Admin Panel</div>
+        <a href="/" style="text-decoration:none; color:inherit;">{{ICON_CLOSE}}</a>
+    </div>
+
+    <div class="admin-container" id="adminContainer" style="display:none;">
+         <div class="admin-sidebar" id="adminSidebar">
+            <div class="sidebar-item active" onclick="switchAdminTab('prod')" id="sbProd">{{ICON_BOX}}</div>
+            <div class="sidebar-item" onclick="switchAdminTab('vouc')" id="sbVouc">{{ICON_TICKET}}</div>
+            <div class="sidebar-item" onclick="switchAdminTab('stats')" id="sbStats">{{ICON_CHART}}</div>
+            <div class="sidebar-item" onclick="switchAdminTab('conf')" id="sbConf">{{ICON_SETTINGS}}</div>
+             <div class="sidebar-item" onclick="doLogout()" style="margin-top:auto; color:var(--danger); background: #FEF2F2;">{{ICON_LOGOUT}}</div>
+        </div>
+        <div class="admin-content">
+            <div id="adminTabProd">
+                <div class="admin-section-title">Manajemen Produk</div>
+
+                <div class="accordion" id="accCategory">
+                    <div class="accordion-header" onclick="toggleAccordion('accCategory')">
+                        <span>Kategori Produk</span> {{ICON_CHEVRONDOWN}}
+                    </div>
+                    <div class="accordion-content">
+                        <div class="acc-inner">
+                            <div id="confCatList" class="tag-container"></div>
+                            <div style="display:flex; gap:8px; margin-top:10px;">
+                                <input id="newCatInput" class="input-field" placeholder="Kategori Baru" style="margin:0">
+                                <button class="btn-primary" onclick="admAddCat()" style="width:auto; padding: 0 15px;">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="admOpenStockSelector()" style="background:#475569; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:8px;">{{ICON_EYE}} Cek & Kelola Stok</button>
+
+                <div class="accordion" id="accAddProd">
+                    <div class="accordion-header" onclick="toggleAccordion('accAddProd')">
+                        <span><span style="color:var(--success)">+</span> Tambah Produk</span> {{ICON_CHEVRONDOWN}}
+                    </div>
+                    <div class="accordion-content">
+                        <div class="acc-inner">
+                            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                <div><label class="form-label">Kode</label><input id="nCode" class="input-field" placeholder="vps1"></div>
+                                <div><label class="form-label">Harga</label><input id="nPrice" type="number" class="input-field" placeholder="0"></div>
+                            </div>
+                            <div><label class="form-label">Nama Produk</label><input id="nName" class="input-field"></div>
+                            <div><label class="form-label">Kategori</label><select id="nCat" class="input-field"><option value="">Pilih...</option></select></div>
+                            <div><label class="form-label">Gambar URL</label><input id="nImg" class="input-field"></div>
+                            <div><label class="form-label">Deskripsi</label><textarea id="nDesc" class="input-field" rows="2"></textarea></div>
+                            <div><label class="form-label">Stok Awal (Pisahkan ;)</label><textarea id="nStock" class="input-field" rows="3"></textarea></div>
+                            <button class="btn-primary" onclick="admAdd()">Simpan Produk</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion" id="accEditProd">
+                    <div class="accordion-header" onclick="toggleAccordion('accEditProd')">
+                        <span>Edit / Hapus Produk</span> {{ICON_CHEVRONDOWN}}
+                    </div>
+                    <div class="accordion-content">
+                        <div class="acc-inner">
+                            <select id="editProdSelect" class="input-field" onchange="loadEditForm()"></select>
+                            <div id="editFormArea" style="display:none;">
+                                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                                    <div><label class="form-label">Harga</label><input id="editPrice" type="number" class="input-field"></div>
+                                    <div><label class="form-label">Kategori</label><select id="editCat" class="input-field"></select></div>
+                                </div>
+                                <div><label class="form-label">Gambar URL</label><input id="editImg" class="input-field"></div>
+                                <div><label class="form-label">Deskripsi</label><textarea id="editDesc" class="input-field" rows="2"></textarea></div>
+                                <div style="display:flex; gap:10px; margin-top:10px;">
+                                    <button class="btn-primary" onclick="admSave()">Update</button>
+                                    <button class="btn-danger" onclick="admDelete()">Hapus</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="adminTabVouc" style="display:none;">
+                <div class="admin-section-title">Voucher & Diskon</div>
+                <div class="acc-inner" style="background:white; border-radius:12px; border:1px solid var(--border);">
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        <div><label class="form-label">Kode</label><input id="vCode" class="input-field" placeholder="KODE"></div>
+                        <div><label class="form-label">Potongan (Rp)</label><input id="vAmount" type="number" class="input-field" placeholder="0"></div>
+                    </div>
+                    <div><label class="form-label">Limit (0=Unlimited)</label><input id="vLimit" type="number" class="input-field" placeholder="0"></div>
+                    <div><label class="form-label">Target Produk</label><select id="vTarget" class="input-field"><option value="ALL">Semua Produk</option></select></div>
+                    <button class="btn-primary" onclick="admSaveVoucher()">Buat Voucher</button>
+                </div>
+                <div id="voucherListAdmin" style="margin-top:15px;"></div>
+            </div>
+
+            <div id="adminTabStats" style="display:none;">
+                <div class="admin-section-title">Dashboard Penjualan</div>
+                <div class="stats-card-grid">
+                    <div class="stats-card"><div class="stats-label">Hari Ini</div><div id="statDaily" class="stats-val">...</div></div>
+                    <div class="stats-card"><div class="stats-label">Bulan Ini</div><div id="statMonthly" class="stats-val">...</div></div>
+                    <div class="stats-card stats-total"><div class="stats-label">Total Pendapatan</div><div id="statTotal" class="stats-val">...</div></div>
+                </div>
+
+                <div class="admin-section-title">Riwayat Transaksi</div>
+                <div style="background:white; border-radius:12px; border:1px solid var(--border); overflow:hidden; padding: 10px;">
+                     <div id="salesHistoryList" class="tx-list"></div>
+                     <div class="pagination">
+                         <button class="page-btn" id="btnPrevPage" onclick="changeStatsPage(-1)">{{ICON_ARROWLEFT}}</button>
+                         <span id="pageIndicator" class="page-num">1</span>
+                         <button class="page-btn" id="btnNextPage" onclick="changeStatsPage(1)">{{ICON_ARROWRIGHT}}</button>
+                     </div>
+                </div>
+            </div>
+
+            <div id="adminTabConf" style="display:none;">
+                <div class="admin-section-title">Pengaturan Toko</div>
+
+                <div class="accordion" id="accGenSettings">
+                    <div class="accordion-header" onclick="toggleAccordion('accGenSettings')">
+                        <span>Tampilan Utama</span> {{ICON_CHEVRONDOWN}}
+                    </div>
+                    <div class="accordion-content">
+                        <div class="acc-inner">
+                            <label class="form-label">Nama Toko (Header)</label>
+                            <input id="confStoreName" class="input-field" placeholder="Nama Toko">
+
+                            <label class="form-label">URL Kontak (Tombol Chat)</label>
+                            <input id="confContact" class="input-field" placeholder="https://wa.me/...">
+
+                            <label class="form-label">Favicon URL</label>
+                            <input id="confFavicon" class="input-field" oninput="previewImg(this, 'prevFav')">
+                            <img id="prevFav" class="preview-favicon">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion" id="accBannerSettings">
+                    <div class="accordion-header" onclick="toggleAccordion('accBannerSettings')">
+                        <span>Manajemen Banner</span> {{ICON_CHEVRONDOWN}}
+                    </div>
+                    <div class="accordion-content">
+                        <div class="acc-inner">
+                            <div id="bannerListContainer"></div>
+                            <button class="btn-primary" onclick="admAddBanner()" style="margin-bottom:15px; background:#475569;">+ Tambah Banner</button>
+                            <div class="form-label">Preview:</div>
+                            <div id="bannerPreviews" style="display:flex; gap:8px; overflow-x:auto; margin-bottom:15px;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="accordion" id="accSeoSettings">
+                    <div class="accordion-header" onclick="toggleAccordion('accSeoSettings')">
+                        <span>SEO & Metadata</span> {{ICON_CHEVRONDOWN}}
+                    </div>
+                    <div class="accordion-content">
+                        <div class="acc-inner">
+                            <label class="form-label">Judul Web (SEO)</label>
+                            <input id="confOgTitle" class="input-field">
+
+                            <label class="form-label">Deskripsi Web (SEO)</label>
+                            <textarea id="confOgDesc" class="input-field"></textarea>
+
+                            <label class="form-label">Gambar Share Link (OG Image)</label>
+                            <input id="confOgImage" class="input-field" oninput="previewImg(this, 'prevOg')">
+                            <img id="prevOg" class="preview-img">
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn-primary" onclick="admSaveConfig()" style="margin-top:15px;">Simpan Konfigurasi</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals that Admin needs -->
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">Admin Area</h3>
+            <input type="password" id="adminPass" class="input-field" placeholder="Password">
+            <button class="btn-primary" onclick="doLogin()">Masuk</button>
+        </div>
+    </div>
+
+    <div id="selectProductModal" class="modal">
+        <div class="modal-content">
+            <div style="position:absolute;top:10px;right:10px;cursor:pointer" onclick="closeModal('selectProductModal')">{{ICON_CLOSE}}</div>
+            <h3 style="margin-top:0;">Pilih Produk</h3>
+            <div id="productSelectList" style="max-height:300px;overflow-y:auto"></div>
+        </div>
+    </div>
+
+    <div id="stockDetailModal" class="modal">
+        <div class="modal-content">
+            <div style="position:absolute;top:10px;right:10px;cursor:pointer" onclick="closeModal('stockDetailModal')">{{ICON_CLOSE}}</div>
+            <h3 id="stkModalName" style="margin-top:0;">Stok</h3>
+            <div id="stockListContainer" style="max-height:200px;overflow-y:auto;text-align:left;margin-bottom:15px;"></div>
+            <label class="form-label">Tambah Stok</label>
+            <textarea id="newStockDirect" class="input-field" placeholder="Data stok..."></textarea>
+            <button class="btn-primary" onclick="admAddStockDirect()">+ Tambah</button>
+        </div>
+    </div>
+
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script>
+    const ICONS = {{ICONS_JSON}};
+    let BANNERS = {{BANNERS_JSON}};
+    let CATEGORIES = {{CATEGORIES_JSON}};
+    let OG_TITLE = "{{OG_TITLE}}";
+    let OG_DESC = "{{OG_DESC}}";
+    let FAVICON_URL = "{{STORE_FAVICON}}";
+    let OG_IMAGE_URL = "{{OG_IMAGE}}";
+    let STORE_NAME = "{{STORE_NAME}}";
+    let CONTACT_URL = "{{CONTACT_URL}}";
+    </script>
+    <script src="/js/script.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (localStorage.getItem('adminKey')) {
+                document.getElementById('adminContainer').style.display = 'flex';
+                // Load initial data
+                await loadProducts();
+                switchAdminTab('prod');
+            } else {
+                openModal('loginModal');
+            }
+        });
+
+        // Override doLogin to reload on success
+        const originalDoLogin = doLogin;
+        doLogin = async () => {
+            await originalDoLogin();
+            if(localStorage.getItem('adminKey')) location.reload();
+        }
+    </script>
+</body>
+</html>
