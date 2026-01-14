@@ -297,6 +297,32 @@ function updateCartCount() {
 
 // --- PAGE SPECIFIC LOGIC ---
 
+// --- PRODUCT DETAIL MODAL LOGIC ---
+
+function openPdpModal(code) {
+    currentCode = code;
+    const p = allProducts.find(x => x.code === code);
+    if(!p) return toast("Produk tidak ditemukan", true);
+
+    // Populate Data
+    document.getElementById('pdpModalImg').src = p.img || FAVICON_URL;
+    document.getElementById('pdpModalPrice').innerText = p.price === 0 ? 'GRATIS' : 'Rp ' + p.price.toLocaleString();
+    document.getElementById('pdpModalName').innerText = p.name;
+    document.getElementById('pdpModalStock').innerText = p.stock < 1 ? 'Stok: Habis' : 'Stok: ' + p.stock;
+    document.getElementById('pdpModalDesc').innerHTML = p.desc || '-';
+
+    // Show Modal
+    openModal('productDetailModal');
+
+    // Update Browser URL (Optional, for sharing)
+    // window.history.pushState({modal:'pdp'}, '', '/p/'+code);
+}
+
+function closePdpModal() {
+    closeModal('productDetailModal');
+    // window.history.pushState({}, '', '/');
+}
+
 // CART PAGE
 function openCartPage() {
     const l = document.getElementById('cartList');
@@ -384,20 +410,17 @@ function checkoutCart() {
 // ==========================================
 
 function openBuy(code) {
-    window.location.href = '/p/' + code;
+    // OLD: window.location.href = '/p/' + code;
+    // NEW: Open Modal
+    openPdpModal(code);
 }
 
 function addToCartCurrent(code) {
-    // If not provided (from PDP page variable)
     if(!code) code = currentCode;
-
-    // Fetch product info if allProducts empty (direct access)
-    // For now simple check
     let p = allProducts.find(x => x.code === code);
 
-    // If on PDP, we might not have allProducts loaded, but we have DOM
+    // Fallback for standalone PDP (if still used)
     if(!p && document.getElementById('pdpName')) {
-        // Construct minimal P
         const priceStr = document.getElementById('pdpPrice').innerText.replace('Rp ', '').replace(/,/g, '').replace('GRATIS', '0');
         p = {
             code: code,
@@ -407,7 +430,7 @@ function addToCartCurrent(code) {
         };
     }
 
-    if (!p) return; // Should fetch from API if really needed
+    if (!p) return toast("Gagal memuat info produk", true);
 
     const exist = cart.find(x => x.code === code);
     if (exist) {
@@ -445,7 +468,7 @@ function buyCurrent(code) {
 
     let p = allProducts.find(x => x.code === currentCode);
 
-    // Fallback for PDP direct load
+    // Fallback for standalone PDP
     if(!p && document.getElementById('pdpName')) {
         const priceStr = document.getElementById('pdpPrice').innerText.replace('Rp ', '').replace(/,/g, '').replace('GRATIS', '0');
         const stockStr = document.getElementById('pdpStock').innerText.replace('Stok: ', '');
@@ -457,7 +480,8 @@ function buyCurrent(code) {
         };
     }
 
-    if (!p || p.stock < 1) return toast("Stok Habis");
+    if (!p) return toast("Gagal memuat produk", true);
+    if (p.stock < 1) return toast("Stok Habis");
 
     const html = `
         <div>
@@ -1257,17 +1281,33 @@ function setSort(t) {
 async function loadProducts() {
     try {
         const r = await fetch('/api/products');
+        if (!r.ok) throw new Error("Server Error");
+
         const d = await r.json();
+        if(d.error) throw new Error(d.message || "Gagal memuat data");
+
         if(d.products && Array.isArray(d.products)) {
             allProducts = d.products;
             applyFilter();
         } else {
-            console.error("Invalid product data", d);
+            // Safe fallback if JSON is valid but structure is wrong
+            allProducts = [];
+            applyFilter();
         }
         if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
     } catch (e) {
         console.error("Load Products Error:", e);
-        if(document.getElementById('loading')) document.getElementById('loading').innerHTML = 'Gagal memuat data.';
+        const l = document.getElementById('loading');
+        if(l) {
+            l.className = ''; // Remove loader spinner class
+            l.style.textAlign = 'center';
+            l.style.color = 'var(--danger)';
+            l.innerHTML = `
+                <div style="margin-bottom:10px;">${ICONS.close}</div>
+                <div>Gagal memuat data.</div>
+                <button class="btn-primary" style="margin-top:10px; width:auto; padding:8px 20px;" onclick="location.reload()">Coba Lagi</button>
+            `;
+        }
     }
 }
 

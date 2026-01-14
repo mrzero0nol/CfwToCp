@@ -73,6 +73,41 @@
     </div>
 
     <!-- Admin Modal (Full content restored) -->
+    <!-- PRODUCT DETAIL MODAL (New Popup) -->
+    <div id="productDetailModal" class="fs-modal">
+        <div class="fs-header">
+            <div>Detail Produk</div>
+            <button style="background:none; border:none; cursor:pointer;" onclick="closePdpModal()">{{ICON_CLOSE}}</button>
+        </div>
+        <div class="pdp-scroll" style="overflow-y:auto; padding-bottom:100px;">
+            <img id="pdpModalImg" class="pdp-hero" src="">
+            <div class="pdp-info">
+                <div id="pdpModalPrice" class="pdp-price">...</div>
+                <div id="pdpModalName" class="pdp-title">...</div>
+                <div style="font-size:0.8rem; color:var(--text-muted); font-weight:600;" id="pdpModalStock">...</div>
+            </div>
+
+            <div class="pdp-desc-box">
+                <div class="pdp-section-title">Deskripsi Produk</div>
+                <div id="pdpModalDesc" class="pdp-desc-text">...</div>
+            </div>
+        </div>
+
+        <div class="pdp-bottom-bar">
+            <div class="pdp-icon-btn" onclick="openContact()">
+                {{ICON_CHAT}}
+                <span>Chat</span>
+            </div>
+            <div style="width:1px; height:24px; background:#eee;"></div>
+            <button class="btn-pdp-cart" onclick="addToCartCurrent()">
+                 + Keranjang
+            </button>
+            <button class="btn-pdp-buy" onclick="buyCurrent()">
+                Beli Sekarang
+            </button>
+        </div>
+    </div>
+
     <div id="adminMenuPage" class="fs-modal">
         <div class="fs-header">
             <div>Admin Panel</div>
