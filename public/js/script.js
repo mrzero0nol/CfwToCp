@@ -1258,10 +1258,17 @@ async function loadProducts() {
     try {
         const r = await fetch('/api/products');
         const d = await r.json();
-        allProducts = d.products;
-        applyFilter();
-        document.getElementById('loading').style.display = 'none';
-    } catch {}
+        if(d.products && Array.isArray(d.products)) {
+            allProducts = d.products;
+            applyFilter();
+        } else {
+            console.error("Invalid product data", d);
+        }
+        if(document.getElementById('loading')) document.getElementById('loading').style.display = 'none';
+    } catch (e) {
+        console.error("Load Products Error:", e);
+        if(document.getElementById('loading')) document.getElementById('loading').innerHTML = 'Gagal memuat data.';
+    }
 }
 
 async function doLogin() {

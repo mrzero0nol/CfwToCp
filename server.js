@@ -242,8 +242,6 @@ app.get('/contact', async (req, res) => {
     res.redirect(conf.contact || DEFAULT_CONFIG.contact);
 });
 
-app.get('/admin', (req, res) => renderView('admin.html', req, res));
-
 // Catch-All Route (Must be last) - For 404 or redirect to Home
 app.get('*', (req, res) => {
     if (req.accepts('html')) {
