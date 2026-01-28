@@ -1,4 +1,0 @@
-[2026-01-13T15:15:42.534Z] Database Connection Failed:
-[TIP] TIP: Pastikan variabel lingkungan (Environment Variables) DB_HOST, DB_USER, DB_PASS, DB_NAME sudah diatur dengan benar di cPanel atau file .env.
-[2026-01-13T15:24:37.118Z] DB Get Error (CONFIG_STORE):
-[2026-01-13T15:24:37.978Z] DB Get Error (LIST_PRODUCTS):

@@ -2,7 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
-const { dbGet, dbPut, dbDelete } = require('./db');
+const crypto = require('crypto');
+const { pool, dbGet, dbPut, dbDelete } = require('./db');
 require('dotenv').config();
 
 const app = express();
@@ -54,7 +55,7 @@ const ICONS = {
     chevronDown: `<svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>`,
     ticket: `<svg viewBox="0 0 24 24"><path d="M20 4H4c-1.1 0-2 .9-2 2v4c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2v-4c-1.1 0-2-.9-2-2s.9-2 2-2V6c0-1.1-.9-2-2-2zm0 14H4v-1.5c1.93 0 3.5-1.57 3.5-3.5S5.93 9.5 4 9.5V6h16v1.5c-1.93 0-3.5 1.57-3.5 3.5s1.57 3.5 3.5 3.5V18z"/></svg>`,
     plus: `<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>`,
-    box: `<svg viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/></svg>`,
+    box: `<svg viewBox="0 0 24 24"><path d="M20 6h-4V4c0-1.1-.9-2-2-2h-4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM10 4h4v2h-4V4zm10 16H4V8h16v12z"/></svg>`,
     arrowLeft: `<svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>`,
     arrowRight: `<svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>`,
     lock: `<svg viewBox="0 0 24 24"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3 3.1-3 1.71 0 3.1 1.29 3.1 3v2z"/></svg>`,
@@ -64,84 +65,106 @@ const ICONS = {
 };
 
 // --- HELPER FUNCTIONS ---
-// Melakukan replace placeholder di template.html dengan nilai dinamis
-async function serveHtml(req, res) {
-    const confRaw = await dbGet("CONFIG_STORE", { type: "json" }) || {};
-    // Merge dengan default agar tidak error jika null
-    const conf = { ...DEFAULT_CONFIG, ...confRaw };
-
-    // Logic untuk OG Meta khusus halaman produk
-    let title = conf.ogTitle || DEFAULT_CONFIG.ogTitle;
-    let desc = conf.ogDesc || DEFAULT_CONFIG.ogDesc;
-    let image = conf.ogImage || DEFAULT_CONFIG.ogImage;
-
-    // Deteksi jika ini halaman produk (/p/KODE)
-    // Express path params biasanya di req.params, tapi kita handle manual url
-    // karena route kita tangkap di app.get('*', ...) atau spesifik
-    if (req.params.code) {
-        const code = req.params.code;
-        const prod = await dbGet(`PROD_${code}`, { type: "json" });
-        const img = await dbGet(`IMG_${code}`);
-        if (prod) {
-            title = `${prod.name} - ${conf.storeName || DEFAULT_CONFIG.storeName}`;
-            desc = prod.desc || `Beli ${prod.name} murah di sini!`;
-            if (img) image = img;
+async function getConfig() {
+    let conf = { ...DEFAULT_CONFIG };
+    try {
+        const [rows] = await pool.execute("SELECT conf_value FROM app_config WHERE conf_key = 'CONFIG_STORE'");
+        if (rows.length > 0) {
+            const dbConf = JSON.parse(rows[0].conf_value);
+            conf = { ...conf, ...dbConf };
         }
-    }
+    } catch (e) {}
+    return conf;
+}
 
-    fs.readFile(path.join(__dirname, 'template.html'), 'utf8', (err, data) => {
-        if (err) return res.status(500).send('Error loading template');
+// Unified View Renderer
+async function renderView(viewName, req, res, extraVars = {}) {
+    try {
+        const conf = await getConfig();
+        const viewsDir = path.join(__dirname, 'views');
 
-        let html = data
-            .replace(/{{STORE_FAVICON}}/g, conf.favicon || DEFAULT_CONFIG.favicon)
-            .replace(/{{OG_IMAGE}}/g, image)
-            .replace(/{{OG_TITLE}}/g, title)
-            .replace(/{{OG_DESC}}/g, desc)
-            .replace(/{{STORE_NAME}}/g, conf.storeName || DEFAULT_CONFIG.storeName)
-            .replace(/{{CONTACT_URL}}/g, conf.contact || DEFAULT_CONFIG.contact)
+        // 1. Read Main View
+        let html = fs.readFileSync(path.join(viewsDir, viewName), 'utf8');
 
-            // Inject Variables
-            .replace('{{ICONS_JSON}}', JSON.stringify(ICONS))
-            .replace('{{BANNERS_JSON}}', JSON.stringify(conf.banners || DEFAULT_CONFIG.banners))
-            .replace('{{CATEGORIES_JSON}}', JSON.stringify(conf.cats || DEFAULT_CONFIG.cats))
+        // 2. Read Partials
+        const head = fs.readFileSync(path.join(viewsDir, 'partials', 'head.html'), 'utf8');
+        const nav = fs.readFileSync(path.join(viewsDir, 'partials', 'nav_bottom.html'), 'utf8');
+        const headerSimple = fs.readFileSync(path.join(viewsDir, 'partials', 'header_simple.html'), 'utf8');
 
-            // Replace ICONS (manual karena kita tidak pakai template engine kompleks)
-            .replace(/{{ICON_SEARCH}}/g, ICONS.search)
-            .replace(/{{ICON_FILTER}}/g, ICONS.filter)
-            .replace(/{{ICON_SETTINGS}}/g, ICONS.settings)
-            .replace(/{{ICON_CHAT}}/g, ICONS.chat)
-            .replace(/{{ICON_HISTORY}}/g, ICONS.history)
-            .replace(/{{ICON_WALLET}}/g, ICONS.wallet)
-            .replace(/{{ICON_CART}}/g, ICONS.cart)
-            .replace(/{{ICON_BAG}}/g, ICONS.bag)
-            .replace(/{{ICON_USER}}/g, ICONS.user)
-            .replace(/{{ICON_BACK}}/g, ICONS.back)
-            .replace(/{{ICON_SHARE}}/g, ICONS.share)
-            .replace(/{{ICON_CLOSE}}/g, ICONS.close)
-            .replace(/{{ICON_BOX}}/g, ICONS.box)
-            .replace(/{{ICON_TICKET}}/g, ICONS.ticket)
-            .replace(/{{ICON_CHART}}/g, ICONS.chart)
-            .replace(/{{ICON_LOGOUT}}/g, ICONS.logout)
-            .replace(/{{ICON_CHEVRONDOWN}}/g, ICONS.chevronDown)
-            .replace(/{{ICON_EYE}}/g, ICONS.eye)
-            .replace(/{{ICON_ARROWLEFT}}/g, ICONS.arrowLeft)
-            .replace(/{{ICON_ARROWRIGHT}}/g, ICONS.arrowRight)
-            .replace(/{{ICON_TRASH}}/g, ICONS.trash)
-            .replace(/{{ICON_EDIT}}/g, ICONS.edit)
-            .replace(/{{ICON_CHECK}}/g, ICONS.check);
+        // 3. Inject Partials
+        html = html.replace('{{PARTIAL_HEAD}}', head)
+                   .replace('{{PARTIAL_NAV_BOTTOM}}', nav)
+                   .replace('{{PARTIAL_HEADER_SIMPLE}}', headerSimple);
+
+        // 4. Prepare Variables
+        const vars = {
+            STORE_NAME: conf.storeName || DEFAULT_CONFIG.storeName,
+            STORE_FAVICON: conf.favicon || DEFAULT_CONFIG.favicon,
+            CONTACT_URL: conf.contact || DEFAULT_CONFIG.contact,
+            OG_TITLE: conf.ogTitle || DEFAULT_CONFIG.ogTitle,
+            OG_DESC: conf.ogDesc || DEFAULT_CONFIG.ogDesc,
+            OG_IMAGE: conf.ogImage || DEFAULT_CONFIG.ogImage,
+            PAGE_TITLE: conf.storeName || DEFAULT_CONFIG.storeName,
+            ICONS_JSON: JSON.stringify(ICONS),
+            BANNERS_JSON: JSON.stringify(conf.banners || DEFAULT_CONFIG.banners),
+            CATEGORIES_JSON: JSON.stringify(conf.cats || DEFAULT_CONFIG.cats),
+
+            // Default Nav Active States
+            NAV_ACTIVE_HOME: viewName === 'home.html' ? 'active' : '',
+            NAV_ACTIVE_CART: viewName === 'cart.html' ? 'active' : '',
+            NAV_ACTIVE_HISTORY: viewName === 'history.html' ? 'active' : '',
+            NAV_ACTIVE_PROFILE: viewName === 'profile.html' ? 'active' : '',
+            NAV_ACTIVE_ASSETS: viewName === 'assets.html' ? 'active' : '',
+
+            // Header Simple Vars
+            BACK_URL: 'javascript:history.back()',
+            PAGE_HEADER_TITLE: 'Menu',
+
+            ...extraVars // Override/Extend
+        };
+
+        // Page Titles
+        if(viewName === 'cart.html') vars.PAGE_HEADER_TITLE = 'Keranjang';
+        if(viewName === 'history.html') vars.PAGE_HEADER_TITLE = 'Riwayat Transaksi';
+        if(viewName === 'profile.html') vars.PAGE_HEADER_TITLE = 'Profil Saya';
+        if(viewName === 'assets.html') vars.PAGE_HEADER_TITLE = 'Aset Digital';
+        if(viewName === 'product.html') {
+             vars.PAGE_HEADER_TITLE = 'Detail Produk';
+             vars.PAGE_TITLE = vars.PROD_NAME || 'Produk';
+        }
+
+        // 5. Replace Variables
+        Object.keys(vars).forEach(k => {
+            const regex = new RegExp(`{{${k}}}`, 'g');
+            html = html.replace(regex, vars[k] || '');
+        });
+
+        // 6. Replace Icons
+        Object.keys(ICONS).forEach(key => {
+             const regex = new RegExp(`{{ICON_${key.toUpperCase()}}}`, 'g');
+             html = html.replace(regex, ICONS[key]);
+        });
 
         res.send(html);
-    });
+    } catch (e) {
+        console.error("Render Error:", e);
+        res.status(500).send("Internal Server Error");
+    }
 }
 
 async function recordSale(name, price, content) {
-    let sales = await dbGet("ADMIN_SALES", { type: "json" }) || [];
-    sales.unshift({ date: new Date().toISOString(), name, price, content });
-    if (sales.length > 10000) sales = sales.slice(0, 10000);
-    await dbPut("ADMIN_SALES", JSON.stringify(sales));
+    try {
+        let sales = await dbGet("ADMIN_SALES", { type: "json" }) || [];
+        sales.unshift({ date: new Date().toISOString(), name, price, content });
+        if (sales.length > 10000) sales = sales.slice(0, 10000);
+        await dbPut("ADMIN_SALES", JSON.stringify(sales));
+    } catch(e) {}
 }
 
 async function createPakasirTrx(amount, orderId) {
+    if (process.env.MOCK_DB === 'true') {
+        return { success: true, data: { payment: { payment_number: 'QR_MOCK_' + orderId } } };
+    }
     try {
         const body = {
             project: process.env.PAKASIR_SLUG,
@@ -149,8 +172,6 @@ async function createPakasirTrx(amount, orderId) {
             amount: amount,
             api_key: process.env.PAKASIR_API_KEY
         };
-        // Menggunakan fetch bawaan Node.js (v18+) atau perlu polyfill jika lama
-        // Jika Node < 18, disarankan pakai axios/node-fetch. Asumsi Node 18+ (cPanel baru biasanya support)
         const response = await fetch('https://app.pakasir.com/api/transactioncreate/qris', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -165,6 +186,9 @@ async function createPakasirTrx(amount, orderId) {
 }
 
 async function checkPakasirStatus(oid, amount) {
+    if (process.env.MOCK_DB === 'true') {
+        return { success: true, data: { transaction: { status: 'completed' } } };
+    }
     try {
         const url = `https://app.pakasir.com/api/transactiondetail?project=${process.env.PAKASIR_SLUG}&amount=${amount}&order_id=${oid}&api_key=${process.env.PAKASIR_API_KEY}`;
         const response = await fetch(url);
@@ -176,146 +200,276 @@ async function checkPakasirStatus(oid, amount) {
     }
 }
 
-
 // --- ROUTES ---
 
-// 1. Serving HTML Utama
-app.get('/', (req, res) => serveHtml(req, res));
-app.get('/p/:code', (req, res) => serveHtml(req, res));
+// 1. Serving HTML Pages (MPA)
+app.get('/', (req, res) => renderView('home.html', req, res));
+app.get('/cart', (req, res) => renderView('cart.html', req, res));
+app.get('/history', (req, res) => renderView('history.html', req, res));
+app.get('/profile', (req, res) => renderView('profile.html', req, res));
+app.get('/assets', (req, res) => renderView('assets.html', req, res));
+app.get('/p/:code', async (req, res) => {
+    // Pre-fetch product for Meta Tags
+    const code = req.params.code;
+    let extraVars = {};
+    try {
+        const [rows] = await pool.execute("SELECT * FROM products WHERE code = ?", [code]);
+        if (rows.length > 0) {
+            const p = rows[0];
+            extraVars = {
+                PROD_CODE: p.code,
+                PROD_NAME: p.name,
+                PROD_PRICE: Number(p.price) === 0 ? 'GRATIS' : 'Rp ' + Number(p.price).toLocaleString(),
+                PROD_DESC: p.description || '',
+                PROD_IMG: p.image_url || '{{STORE_FAVICON}}',
+                PROD_STOCK: 'Ready', // Simple check
+                OG_TITLE: p.name,
+                OG_DESC: p.description,
+                OG_IMAGE: p.image_url
+            };
+            // Get accurate stock
+            const [s] = await pool.execute("SELECT COUNT(*) as cnt FROM product_stocks WHERE product_code = ? AND is_sold = 0", [code]);
+            extraVars.PROD_STOCK = s[0].cnt;
+        }
+    } catch(e) {}
+
+    renderView('product.html', req, res, extraVars);
+});
+
+// Add New Routes
+app.get('/contact', async (req, res) => {
+    const conf = await getConfig();
+    res.redirect(conf.contact || DEFAULT_CONFIG.contact);
+});
 
 // 2. API Config
 app.get('/api/config', async (req, res) => {
-    const conf = await dbGet("CONFIG_STORE", { type: "json" }) || {};
-    res.json(Object.assign({}, DEFAULT_CONFIG, conf));
+    const conf = await getConfig();
+    res.json(conf);
 });
 
 // 3. API Products
 app.get('/api/products', async (req, res) => {
-    let list = await dbGet("LIST_PRODUCTS", { type: "json" }) || [];
-    let products = [];
-    for (const code of list) {
-        const prod = await dbGet(`PROD_${code}`, { type: "json" });
-        if (!prod) continue;
-        const stock = await dbGet(`STOCK_${code}`, { type: "json" }) || [];
-        const img = await dbGet(`IMG_${code}`);
-        products.push({
-            code: prod.code,
-            name: prod.name,
-            price: parseInt(prod.price),
-            stock: stock.length,
-            img: img,
-            category: prod.category || '',
-            desc: prod.desc || ''
-        });
+    try {
+        const [rows] = await pool.execute(`
+            SELECT p.*,
+            (SELECT COUNT(*) FROM product_stocks s WHERE s.product_code = p.code AND s.is_sold = 0) as stock_count
+            FROM products p
+        `);
+        const products = rows.map(r => ({
+            code: r.code,
+            name: r.name,
+            price: Number(r.price),
+            stock: Number(r.stock_count),
+            img: r.image_url,
+            category: r.category || '',
+            desc: r.description || ''
+        }));
+        res.json({ products });
+    } catch (e) {
+        res.status(500).json({ products: [] });
     }
-    res.json({ products });
 });
 
 // 4. API Check Voucher
 app.post('/api/check-voucher', async (req, res) => {
     const { code, productCode } = req.body;
-    const voucher = await dbGet(`VOUCHER_${code}`, { type: "json" });
-    if (!voucher) return res.json({ valid: false, message: "Tidak valid" });
-    if (voucher.limit && voucher.limit > 0 && (voucher.used || 0) >= voucher.limit) return res.json({ valid: false, message: "Habis" });
-    if (voucher.validFor !== "ALL" && voucher.validFor !== productCode) return res.json({ valid: false, message: "Tidak berlaku produk ini" });
-    res.json({ valid: true, amount: voucher.amount });
+    try {
+        const [rows] = await pool.execute("SELECT * FROM vouchers WHERE code = ?", [code]);
+        if (rows.length === 0) return res.json({ valid: false, message: "Tidak valid" });
+
+        const v = rows[0];
+        if (v.usage_limit > 0 && v.usage_count >= v.usage_limit) return res.json({ valid: false, message: "Habis" });
+        if (v.valid_for !== 'ALL' && v.valid_for !== productCode) return res.json({ valid: false, message: "Tidak berlaku produk ini" });
+
+        res.json({ valid: true, amount: Number(v.amount) });
+    } catch (e) {
+        res.json({ valid: false, message: "Error" });
+    }
 });
 
 // 5. API Buy
 app.post('/api/buy', async (req, res) => {
     const { code, qty, voucherCode } = req.body;
-    const prod = await dbGet(`PROD_${code}`, { type: "json" });
-    let stock = await dbGet(`STOCK_${code}`, { type: "json" }) || [];
-
     const reqQty = parseInt(qty);
     if (isNaN(reqQty) || reqQty < 1) return res.json({ success: false, message: "Jumlah tidak valid" });
-    if (!prod || stock.length < reqQty) return res.json({ success: false, message: "Stok kurang" });
 
-    let amount = parseInt(prod.price) * reqQty;
-    if (voucherCode) {
-        const v = await dbGet(`VOUCHER_${voucherCode}`, { type: "json" });
-        if (v && (v.validFor === "ALL" || v.validFor === code) && (!v.limit || v.limit === 0 || (v.used || 0) < v.limit)) {
-            amount = Math.max(0, amount - v.amount);
-        }
-    }
+    try {
+        const [prodRows] = await pool.execute("SELECT * FROM products WHERE code = ?", [code]);
+        if (prodRows.length === 0) return res.json({ success: false, message: "Produk tidak ditemukan" });
+        const prod = prodRows[0];
 
-    // Jika GRATIS (Rp 0)
-    if (amount === 0) {
-        const accounts = [];
-        for (let i = 0; i < reqQty; i++) accounts.push(stock.shift());
+        const [stockRows] = await pool.execute("SELECT COUNT(*) as cnt FROM product_stocks WHERE product_code = ? AND is_sold = 0", [code]);
+        const stockCount = stockRows[0].cnt;
 
-        await dbPut(`STOCK_${code}`, JSON.stringify(stock));
+        if (stockCount < reqQty) return res.json({ success: false, message: "Stok kurang" });
+
+        let amount = Number(prod.price) * reqQty;
         if (voucherCode) {
-            const v = await dbGet(`VOUCHER_${voucherCode}`, { type: "json" });
-            if (v) {
-                v.used = (v.used || 0) + 1;
-                await dbPut(`VOUCHER_${voucherCode}`, JSON.stringify(v));
+            const [vRows] = await pool.execute("SELECT * FROM vouchers WHERE code = ?", [voucherCode]);
+            if (vRows.length > 0) {
+                const v = vRows[0];
+                if (v.valid_for === 'ALL' || v.valid_for === code) {
+                    if (!v.usage_limit || v.usage_count < v.usage_limit) {
+                         amount = Math.max(0, amount - Number(v.amount));
+                    }
+                }
             }
         }
-        await recordSale(prod.name, 0, accounts);
-        return res.json({ success: true, isFree: true, accounts });
-    }
 
-    // Jika BAYAR (Pakasir)
-    const orderId = `INV${Date.now()}`;
-    const pgRes = await createPakasirTrx(amount, orderId);
+        if (amount === 0) {
+            const orderId = `FREE-${Date.now()}`;
+            const connection = await pool.getConnection();
+            try {
+                await connection.beginTransaction();
 
-    if (pgRes.success && pgRes.data.payment) {
-        await dbPut(`ORDER_${orderId}`, JSON.stringify({ code, qty: reqQty, status: 'PENDING', voucherCode, amount }));
-        // Expire order not automatically handled in SQL like KV TTL, but we can manage it with updated_at column later or CronJob.
-        // For now, simple implementation.
-        return res.json({ success: true, isFree: false, amount, qrString: pgRes.data.payment.payment_number, orderId: orderId });
+                const [stocks] = await connection.execute("SELECT id, account_data FROM product_stocks WHERE product_code = ? AND is_sold = 0 LIMIT ? FOR UPDATE", [code, reqQty]);
+                if (stocks.length < reqQty) {
+                    await connection.rollback();
+                    return res.json({ success: false, message: "Stok rebutan habis" });
+                }
+
+                const ids = stocks.map(s => s.id);
+                const accounts = stocks.map(s => s.account_data);
+
+                const placeholders = ids.map(() => '?').join(',');
+                await connection.execute(`UPDATE product_stocks SET is_sold = 1, order_id = ? WHERE id IN (${placeholders})`, [orderId, ...ids]);
+
+                await connection.execute("INSERT INTO orders (order_id, product_code, quantity, total_amount, voucher_code, status) VALUES (?, ?, ?, ?, ?, 'CLAIMED')",
+                    [orderId, code, reqQty, 0, voucherCode]);
+
+                if (voucherCode) {
+                    await connection.execute("UPDATE vouchers SET usage_count = usage_count + 1 WHERE code = ?", [voucherCode]);
+                }
+
+                await connection.commit();
+                await recordSale(prod.name, 0, accounts);
+                return res.json({ success: true, isFree: true, accounts });
+            } catch(e) {
+                await connection.rollback();
+                console.error(e);
+                return res.json({ success: false, message: "Transaction Error" });
+            } finally {
+                connection.release();
+            }
+        }
+
+        const orderId = `INV${Date.now()}`;
+        const pgRes = await createPakasirTrx(amount, orderId);
+
+        if (pgRes.success && pgRes.data.payment) {
+            await pool.execute("INSERT INTO orders (order_id, product_code, quantity, total_amount, voucher_code, status, payment_url) VALUES (?, ?, ?, ?, ?, 'PENDING', ?)",
+                [orderId, code, reqQty, amount, voucherCode, pgRes.data.payment.payment_number]);
+
+            return res.json({ success: true, isFree: false, amount, qrString: pgRes.data.payment.payment_number, orderId });
+        }
+        return res.json({ success: false, message: "Gateway Error" });
+
+    } catch(e) {
+        console.error(e);
+        return res.json({ success: false, message: "System Error" });
     }
-    return res.json({ success: false, message: "Gateway Error" });
 });
 
 // 6. API Check Status
 app.get('/api/check-status', async (req, res) => {
     const oid = req.query.oid;
-    const orderRaw = await dbGet(`ORDER_${oid}`);
-    if (!orderRaw) return res.json({ status: 'PENDING' });
+    try {
+        const [rows] = await pool.execute("SELECT status, total_amount FROM orders WHERE order_id = ?", [oid]);
+        if (rows.length === 0) return res.json({ status: 'PENDING' });
 
-    const order = JSON.parse(orderRaw);
-    const pgRes = await checkPakasirStatus(oid, order.amount);
+        const order = rows[0];
+        if (order.status === 'PAID' || order.status === 'CLAIMED') return res.json({ status: 'PAID' });
 
-    // Check if pakasir says completed
-    const status = (pgRes.success && pgRes.data.transaction && pgRes.data.transaction.status === 'completed') ? 'PAID' : 'PENDING';
-    res.json({ status });
+        const pgRes = await checkPakasirStatus(oid, order.total_amount);
+        if (pgRes.success && pgRes.data.transaction && pgRes.data.transaction.status === 'completed') {
+            return res.json({ status: 'PAID' });
+        }
+
+        res.json({ status: 'PENDING' });
+    } catch(e) {
+        res.json({ status: 'PENDING' });
+    }
 });
 
-// 7. API Claim (Setelah bayar sukses)
+// 7. API Claim
 app.post('/api/claim', async (req, res) => {
     const { oid } = req.body;
-    const orderRaw = await dbGet(`ORDER_${oid}`);
-    if (!orderRaw || orderRaw === "CLAIMED") return res.json({ success: false });
+    try {
+        const [rows] = await pool.execute("SELECT * FROM orders WHERE order_id = ?", [oid]);
+        if (rows.length === 0) return res.json({ success: false });
+        const order = rows[0];
 
-    const order = JSON.parse(orderRaw);
-    const pgRes = await checkPakasirStatus(oid, order.amount);
+        if (order.status === 'CLAIMED') return res.json({ success: false });
 
-    if (!pgRes.success || !pgRes.data.transaction || pgRes.data.transaction.status !== 'completed') {
+        const pgRes = await checkPakasirStatus(oid, order.total_amount);
+        if (!pgRes.success || !pgRes.data.transaction || pgRes.data.transaction.status !== 'completed') {
+            return res.json({ success: false });
+        }
+
+        const connection = await pool.getConnection();
+        try {
+            await connection.beginTransaction();
+
+            await connection.execute("UPDATE orders SET status = 'CLAIMED' WHERE order_id = ?", [oid]);
+
+            const [stocks] = await connection.execute("SELECT id, account_data FROM product_stocks WHERE product_code = ? AND is_sold = 0 LIMIT ? FOR UPDATE", [order.product_code, order.quantity]);
+
+            if (stocks.length < order.quantity) {
+                 await connection.rollback();
+                 return res.json({ success: false, message: "Stok habis saat claim" });
+            }
+
+            const ids = stocks.map(s => s.id);
+            const accounts = stocks.map(s => s.account_data);
+
+            const placeholders = ids.map(() => '?').join(',');
+            await connection.execute(`UPDATE product_stocks SET is_sold = 1, order_id = ? WHERE id IN (${placeholders})`, [oid, ...ids]);
+
+            await connection.commit();
+            await recordSale(order.product_code, order.total_amount, accounts);
+
+            return res.json({ success: true, accounts });
+        } catch(e) {
+            await connection.rollback();
+            return res.json({ success: false });
+        } finally {
+            connection.release();
+        }
+    } catch(e) {
         return res.json({ success: false });
     }
+});
 
-    // Tandai sudah diklaim agar tidak double
-    await dbPut(`ORDER_${oid}`, "CLAIMED");
+// 8. Auth API
+app.post('/api/register', async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) return res.json({ success: false, message: "Incomplete" });
 
-    const prod = await dbGet(`PROD_${order.code}`, { type: "json" });
-    let stock = await dbGet(`STOCK_${order.code}`, { type: "json" }) || [];
-
-    const qtyToClaim = parseInt(order.qty);
-    const accs = [];
-    for (let i = 0; i < qtyToClaim; i++) if (stock.length > 0) accs.push(stock.shift());
-
-    await dbPut(`STOCK_${order.code}`, JSON.stringify(stock));
-    if (order.voucherCode) {
-        const v = await dbGet(`VOUCHER_${order.voucherCode}`, { type: "json" });
-        if (v) {
-            v.used = (v.used || 0) + 1;
-            await dbPut(`VOUCHER_${order.voucherCode}`, JSON.stringify(v));
-        }
+    const hash = crypto.createHash('sha256').update(password).digest('hex');
+    try {
+        await pool.execute("INSERT INTO users (username, password) VALUES (?, ?)", [username, hash]);
+        res.json({ success: true });
+    } catch(e) {
+        console.error("Register Error:", e);
+        res.json({ success: false, message: "Username exists" });
     }
-    await recordSale(prod ? prod.name : order.code, order.amount, accs);
-    return res.json({ success: true, accounts: accs });
+});
+
+app.post('/api/login', async (req, res) => {
+    const { username, password } = req.body;
+    const hash = crypto.createHash('sha256').update(password).digest('hex');
+
+    try {
+        const [rows] = await pool.execute("SELECT id, username FROM users WHERE username = ? AND password = ?", [username, hash]);
+        if (rows.length > 0) {
+            res.json({ success: true, user: rows[0] });
+        } else {
+            res.json({ success: false, message: "Invalid credentials" });
+        }
+    } catch(e) {
+        res.json({ success: false, message: "Error" });
+    }
 });
 
 
@@ -332,109 +486,180 @@ app.post('/api/admin/login', (req, res) => {
 
 app.post('/api/admin/stock-action', adminMiddleware, async (req, res) => {
     const { code, action, data, index } = req.body;
-    let stock = await dbGet(`STOCK_${code}`, { type: "json" }) || [];
-    if (action === 'add') {
-        const newItems = data.split(';').map(i => i.trim()).filter(i => i !== '');
-        stock.push(...newItems);
-    } else if (action === 'delete') {
-        if (index >= 0 && index < stock.length) stock.splice(index, 1);
+    try {
+        if (action === 'add') {
+            const newItems = data.split(';').map(i => i.trim()).filter(i => i !== '');
+            for (const item of newItems) {
+                await pool.execute("INSERT INTO product_stocks (product_code, account_data) VALUES (?, ?)", [code, item]);
+            }
+        } else if (action === 'delete') {
+            const [rows] = await pool.execute("SELECT id FROM product_stocks WHERE product_code = ? AND is_sold = 0 ORDER BY id ASC LIMIT 1 OFFSET ?", [code, parseInt(index)]);
+            if (rows.length > 0) {
+                await pool.execute("DELETE FROM product_stocks WHERE id = ?", [rows[0].id]);
+            }
+        }
+        const [sRows] = await pool.execute("SELECT account_data FROM product_stocks WHERE product_code = ? AND is_sold = 0", [code]);
+        res.json({ success: true, newStock: sRows.map(r => r.account_data) });
+    } catch(e) {
+        console.error(e);
+        res.json({ success: false });
     }
-    await dbPut(`STOCK_${code}`, JSON.stringify(stock));
-    res.json({ success: true, newStock: stock });
 });
 
 app.get('/api/admin/stats', adminMiddleware, async (req, res) => {
     const page = parseInt(req.query.page || "1");
     const limit = 7;
-    const sales = await dbGet("ADMIN_SALES", { type: "json" }) || [];
+    const offset = (page - 1) * limit;
 
-    const now = new Date().toISOString();
-    let daily = 0, monthly = 0, total = 0;
-    sales.forEach(s => {
-        total += (s.price || 0);
-        if (s.date.startsWith(now.split('T')[0])) daily += (s.price || 0);
-        if (s.date.startsWith(now.slice(0, 7))) monthly += (s.price || 0);
-    });
+    try {
+        const [totalRows] = await pool.execute("SELECT SUM(total_amount) as t FROM orders WHERE status IN ('PAID', 'CLAIMED')");
+        const total = Number(totalRows[0].t || 0);
 
-    const startIndex = (page - 1) * limit;
-    const endIndex = page * limit;
-    const paginatedHistory = sales.slice(startIndex, endIndex);
+        const [dailyRows] = await pool.execute("SELECT SUM(total_amount) as t FROM orders WHERE status IN ('PAID', 'CLAIMED') AND DATE(created_at) = CURDATE()");
+        const daily = Number(dailyRows[0].t || 0);
 
-    res.json({ success: true, daily, monthly, total, history: paginatedHistory, page });
+        const [monthlyRows] = await pool.execute("SELECT SUM(total_amount) as t FROM orders WHERE status IN ('PAID', 'CLAIMED') AND MONTH(created_at) = MONTH(CURRENT_DATE())");
+        const monthly = Number(monthlyRows[0].t || 0);
+
+        const [histRows] = await pool.execute("SELECT * FROM orders WHERE status IN ('PAID', 'CLAIMED') ORDER BY created_at DESC LIMIT " + limit + " OFFSET " + offset);
+
+        const history = histRows.map(r => ({
+            name: r.product_code,
+            date: r.created_at || new Date().toISOString(),
+            price: Number(r.total_amount)
+        }));
+
+        res.json({ success: true, daily, monthly, total, history, page });
+    } catch(e) {
+        console.error(e);
+        res.json({ success: false });
+    }
 });
 
 app.get('/api/admin/get-stock', adminMiddleware, async (req, res) => {
     const code = req.query.code;
-    const stock = await dbGet(`STOCK_${code}`, { type: "json" }) || [];
-    res.json({ stock });
+    const [rows] = await pool.execute("SELECT account_data FROM product_stocks WHERE product_code = ? AND is_sold = 0", [code]);
+    res.json({ stock: rows.map(r => r.account_data) });
 });
 
 app.post('/api/admin/add-product', adminMiddleware, async (req, res) => {
     const body = req.body;
     const c = body.code.replace(/\s/g, "").toLowerCase();
-    await dbPut(`PROD_${c}`, JSON.stringify({ code: c, name: body.name, price: body.price, category: body.category, desc: body.desc }));
-    if (body.img) await dbPut(`IMG_${c}`, body.img);
-    if (body.stockData) await dbPut(`STOCK_${c}`, JSON.stringify(body.stockData.split(";").map(i => i.trim()).filter(i => i !== "")));
-    let list = await dbGet("LIST_PRODUCTS", { type: "json" }) || [];
-    if (!list.includes(c)) { list.push(c); await dbPut("LIST_PRODUCTS", JSON.stringify(list)); }
-    res.json({ success: true });
+    const connection = await pool.getConnection();
+    try {
+        await connection.beginTransaction();
+        await connection.execute("INSERT INTO products (code, name, price, category, description, image_url) VALUES (?, ?, ?, ?, ?, ?)",
+            [c, body.name, body.price, body.category, body.desc, body.img]);
+
+        if (body.stockData) {
+            const items = body.stockData.split(";").map(i => i.trim()).filter(i => i !== "");
+            for (const item of items) {
+                await connection.execute("INSERT INTO product_stocks (product_code, account_data) VALUES (?, ?)", [c, item]);
+            }
+        }
+        await connection.commit();
+        res.json({ success: true });
+    } catch(e) {
+        await connection.rollback();
+        res.json({ success: false });
+    } finally {
+        connection.release();
+    }
 });
 
 app.post('/api/admin/edit-product', adminMiddleware, async (req, res) => {
     const body = req.body;
-    let p = await dbGet(`PROD_${body.code}`, { type: "json" });
-    if (!p) return res.json({ success: false });
-    if (body.price) p.price = parseInt(body.price);
-    if (body.category !== undefined) p.category = body.category;
-    if (body.desc !== undefined) p.desc = body.desc;
-    await dbPut(`PROD_${body.code}`, JSON.stringify(p));
-    if (body.img) await dbPut(`IMG_${body.code}`, body.img);
-    if (body.stockData) {
-        let s = await dbGet(`STOCK_${body.code}`, { type: "json" }) || [];
-        s.push(...body.stockData.split(";").map(i => i.trim()).filter(i => i !== ""));
-        await dbPut(`STOCK_${body.code}`, JSON.stringify(s));
+    try {
+        let sql = "UPDATE products SET ";
+        const params = [];
+        if (body.price) { sql += "price = ?, "; params.push(body.price); }
+        if (body.category) { sql += "category = ?, "; params.push(body.category); }
+        if (body.desc) { sql += "description = ?, "; params.push(body.desc); }
+        if (body.img) { sql += "image_url = ?, "; params.push(body.img); }
+
+        if (params.length > 0) {
+            sql = sql.slice(0, -2) + " WHERE code = ?";
+            params.push(body.code);
+            await pool.execute(sql, params);
+        }
+
+        if (body.stockData) {
+             const items = body.stockData.split(";").map(i => i.trim()).filter(i => i !== "");
+             for (const item of items) {
+                await pool.execute("INSERT INTO product_stocks (product_code, account_data) VALUES (?, ?)", [body.code, item]);
+             }
+        }
+        res.json({ success: true });
+    } catch(e) {
+        res.json({ success: false });
     }
-    res.json({ success: true });
 });
 
 app.post('/api/admin/delete-product', adminMiddleware, async (req, res) => {
     const body = req.body;
-    await dbDelete(`PROD_${body.code}`);
-    await dbDelete(`STOCK_${body.code}`);
-    await dbDelete(`IMG_${body.code}`);
-    let list = await dbGet("LIST_PRODUCTS", { type: "json" }) || [];
-    await dbPut("LIST_PRODUCTS", JSON.stringify(list.filter(c => c !== body.code)));
-    res.json({ success: true });
+    try {
+        await pool.execute("DELETE FROM product_stocks WHERE product_code = ?", [body.code]);
+        await pool.execute("DELETE FROM products WHERE code = ?", [body.code]);
+        res.json({ success: true });
+    } catch(e) {
+        res.json({ success: false });
+    }
 });
 
 app.post('/api/admin/save-voucher', adminMiddleware, async (req, res) => {
-    const body = req.body;
-    const { code, amount, validFor, limit } = body;
-    const ex = await dbGet(`VOUCHER_${code}`, { type: "json" });
-    await dbPut(`VOUCHER_${code}`, JSON.stringify({ code, amount, validFor, limit, used: ex ? ex.used : 0 }));
-    let l = await dbGet("LIST_VOUCHERS", { type: "json" }) || [];
-    if (!l.includes(code)) { l.push(code); await dbPut("LIST_VOUCHERS", JSON.stringify(l)); }
-    res.json({ success: true });
+    const { code, amount, validFor, limit } = req.body;
+    try {
+        await pool.execute("INSERT INTO vouchers (code, amount, valid_for, usage_limit) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE amount=VALUES(amount), valid_for=VALUES(valid_for), usage_limit=VALUES(usage_limit)",
+            [code, amount, validFor, limit]);
+        res.json({ success: true });
+    } catch(e) {
+        res.json({ success: false });
+    }
 });
 
 app.get('/api/admin/vouchers', adminMiddleware, async (req, res) => {
-    let list = await dbGet("LIST_VOUCHERS", { type: "json" }) || [];
-    let vouchers = [];
-    for (const c of list) { const v = await dbGet(`VOUCHER_${c}`, { type: "json" }); if (v) vouchers.push(v); }
-    res.json({ vouchers });
+    try {
+        const [rows] = await pool.execute("SELECT * FROM vouchers");
+        const vouchers = rows.map(v => ({
+            code: v.code,
+            amount: Number(v.amount),
+            validFor: v.valid_for,
+            limit: v.usage_limit,
+            used: v.usage_count
+        }));
+        res.json({ vouchers });
+    } catch(e) {
+        res.json({ vouchers: [] });
+    }
 });
 
 app.post('/api/admin/del-voucher', adminMiddleware, async (req, res) => {
-    const body = req.body;
-    await dbDelete(`VOUCHER_${body.code}`);
-    let l = await dbGet("LIST_VOUCHERS", { type: "json" }) || [];
-    await dbPut("LIST_VOUCHERS", JSON.stringify(l.filter(c => c !== body.code)));
-    res.json({ success: true });
+    try {
+        await pool.execute("DELETE FROM vouchers WHERE code = ?", [req.body.code]);
+        res.json({ success: true });
+    } catch(e) {
+        res.json({ success: false });
+    }
 });
 
 app.post('/api/admin/save-config', adminMiddleware, async (req, res) => {
-    await dbPut("CONFIG_STORE", JSON.stringify(req.body));
-    res.json({ success: true });
+    const key = "CONFIG_STORE";
+    const val = JSON.stringify(req.body);
+    try {
+        await pool.execute("INSERT INTO app_config (conf_key, conf_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE conf_value=VALUES(conf_value)", [key, val]);
+        res.json({ success: true });
+    } catch(e) {
+        res.json({ success: false });
+    }
+});
+
+// Catch-All Route (Must be last) - For 404 or redirect to Home
+app.get('*', (req, res) => {
+    if (req.accepts('html')) {
+        res.redirect('/');
+    } else {
+        res.status(404).json({ error: 'Not found' });
+    }
 });
 
 // START SERVER
